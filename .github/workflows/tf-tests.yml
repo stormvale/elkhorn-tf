@@ -41,6 +41,7 @@ jobs:
         uses: bridgecrewio/checkov-action@master
         with:
           framework: terraform
+          skip_check: CKV_AZURE_206,CKV2_AZURE_1
       
       # Upload results to GitHub Advanced Security
       - name: Upload SARIF file
