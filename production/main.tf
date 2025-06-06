@@ -1,3 +1,7 @@
+provider "azurerm" {
+  features { }
+  use_oidc = true
+}
 
 # the resource group for prod environment
 resource "azurerm_resource_group" "rg" {
