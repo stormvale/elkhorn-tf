@@ -14,8 +14,11 @@ terraform {
   }
 
   backend "azurerm" {
-    key              = "terraform.tfstate"
-    use_oidc         = true
-    use_azuread_auth = true
+    resource_group_name  = "rg-elkhorn-wus2"
+    storage_account_name = "stoelkhornu3g3pw"
+    container_name       = "tfstate-dev"
+    key                  = "terraform.tfstate"
+    use_oidc             = true
+    use_azuread_auth     = true
   }
 }
