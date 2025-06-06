@@ -16,9 +16,13 @@ permissions:
 jobs:
   pr-infra-check:
     runs-on: ubuntu-latest
+
     strategy:
       matrix:
-        environment: [dev, prod]
+        environment: [development, production]
+
+    environment: ${{ matrix.environment }}
+    
     steps:
       # Checkout the repository to the GitHub Actions runner
       - name: Checkout
@@ -45,7 +49,7 @@ jobs:
       - name: Terraform Init
         id: init
         env:
-          STORAGE_ACCOUNT: ${{ secrets.TF_STORAGE_ACCOUNT }}
+          STORAGE_ACCOUNT: ${{ secrets.TF_STORAGE_ACCOUNT_NAME }}
           CONTAINER_NAME: ${{ secrets.TF_CONTAINER_NAME }}
           RESOURCE_GROUP_NAME: ${{ secrets.TF_RESOURCE_GROUP_NAME }}
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
