@@ -45,6 +45,8 @@ jobs:
         run: |
           az account show
 
+      # Add the GitHub runner IP to the storage account firewall rules to allow access to the Terraform state file.
+      # This is necessary because the storage account is private and only allows access from specific IPs.
       - name: Whitelist GitHub Runner IP
         uses: azure/CLI@v1
         with:
@@ -71,6 +73,7 @@ jobs:
           cd ${{ matrix.environment }}
           terraform init -backend-config="storage_account_name=$STORAGE_ACCOUNT" -backend-config="container_name=$CONTAINER_NAME" -backend-config="resource_group_name=$RESOURCE_GROUP_NAME"
       
+      # Remove the GitHub runner IP from the storage account firewall rules to prevent unauthorized access.
       - name: Remove GitHub Runner IP from Whitelist
         if: always()
         uses: azure/CLI@v1
@@ -107,7 +110,7 @@ jobs:
         id: checkov
         uses: bridgecrewio/checkov-action@master
         with:
-          directory: ${{ matrix.environment }}
+          directory: ${{ matrix.environment }}/
           output_file_path: results/${{ matrix.environment }}.sarif
           framework: terraform
           skip_check: LOW,CKV2_AZURE_33,CKV2_AZURE_1
