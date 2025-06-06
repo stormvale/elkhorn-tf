@@ -45,6 +45,18 @@ jobs:
         run: |
           az account show
 
+      - name: Whitelist GitHub Runner IP
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            set -eu
+            agentIP=$(curl -s https://api.ipify.org/)
+            az storage account network-rule add \
+              --resource-group "${{ secrets.TF_RESOURCE_GROUP_NAME }}" \
+              --account-name "${{ secrets.TF_STORAGE_ACCOUNT_NAME }}" \
+              --ip-address $agentIP
+            sleep 30
+
       # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
       - name: Terraform Init
         id: init
@@ -59,6 +71,18 @@ jobs:
           cd ${{ matrix.environment }}
           terraform init -backend-config="storage_account_name=$STORAGE_ACCOUNT" -backend-config="container_name=$CONTAINER_NAME" -backend-config="resource_group_name=$RESOURCE_GROUP_NAME"
       
+      - name: Remove GitHub Runner IP from Whitelist
+        if: always()
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            set -eu
+            agentIP=$(curl -s https://api.ipify.org/)
+            az storage account network-rule remove  \
+              --resource-group "${{ secrets.TF_RESOURCE_GROUP_NAME }}" \
+              --account-name "${{ secrets.TF_STORAGE_ACCOUNT_NAME }}" \
+              --ip-address $agentIP
+
       # Run a Terraform fmt
       - name: Terraform format
         id: fmt
