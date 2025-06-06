@@ -18,6 +18,8 @@ terraform {
     storage_account_name = "tfstate71d6f"
     container_name       = "tfstate"
     key                  = "terraform.tfstate"
+    # use_oidc             = true
+    use_azuread_auth     = true
   }
 }
 
@@ -28,4 +30,5 @@ provider "azurerm" {
       recover_soft_deleted_secrets          = true
     }
   }
+  use_oidc = true # this could be set through an environment variable as well?
 }
