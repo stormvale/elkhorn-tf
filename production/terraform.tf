@@ -14,7 +14,7 @@ terraform {
   }
 
   backend "azurerm" {
-    key                  = "terraform.tfstate"
-    use_azuread_auth     = true
+    key              = "terraform.tfstate"
+    use_azuread_auth = true
   }
 }

@@ -1,5 +1,5 @@
 provider "azurerm" {
-  features { }
+  features {}
   use_oidc = true
 }
 
