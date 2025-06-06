@@ -32,7 +32,7 @@ locals {
   tags = merge(
     var.tags,
     tomap({
-      environment = "dev"
+      environment = "prod"
     })
   )
 }

@@ -16,7 +16,7 @@ terraform {
   backend "azurerm" {
     resource_group_name  = "rg-elkhorn-wus2"
     storage_account_name = "stoelkhornu3g3pw"
-    container_name       = "tfstate-dev"
+    container_name       = "tfstate-prod"
     key                  = "terraform.tfstate"
     use_azuread_auth     = true
   }

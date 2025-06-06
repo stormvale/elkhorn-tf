@@ -1,9 +1,10 @@
-name: Push
+name: Push to Main
 
 on:
-  push:
-    branches:
-      - main
+  # push:
+  #   branches:
+  #     - main
+  workflow_dispatch:
 
 env:
   TF_LOG: INFO
