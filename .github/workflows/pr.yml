@@ -119,7 +119,7 @@ jobs:
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
         run: |
           cd ${{ matrix.environment }}
-          terraform plan -no-color -out=../${{ matrix.environment }}.tfplan
+          terraform plan -no-color -out=${{ matrix.environment }}.tfplan
 
       # Remove the GitHub runner IP from the storage account firewall rules to prevent unauthorized access.
       - name: Remove GitHub Runner IP from Whitelist
@@ -139,4 +139,5 @@ jobs:
         uses: borchero/terraform-plan-comment@v2
         with:
           token: ${{ github.token }}
+          working-directory: ${{ matrix.environment }}
           planfile: ${{ matrix.environment }}.tfplan
