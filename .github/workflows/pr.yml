@@ -134,33 +134,16 @@ jobs:
               --account-name "${{ secrets.TF_STORAGE_ACCOUNT_NAME }}" \
               --ip-address $agentIP
 
-      # Add a comment to pull requests with plan results
-      - name: Add Plan Comment
-        id: comment
-        uses: actions/github-script@v6
-        env:
-          ENVIRONMENT: ${{ matrix.environment }}
-          #PLAN: "terraform\n${{ steps.plan.outputs.stdout }}"
-          PLAN: "${{ matrix.environment }}.tfplan"
+      # Create a pull request comment with the Terraform plan output
+      - name: Create PR comment with plan output
+        if: success() || failure()
+        uses: peter-evans/create-or-update-comment@v3
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const output = `#### Terraform Format and Style 🖌\`${{ steps.fmt.outcome }}\`
-            #### Terraform Initialization ⚙️\`${{ steps.init.outcome }}\`
-            #### Terraform Validation 🤖${{ steps.validate.outputs.stdout }}
-            #### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
-        
-            <details><summary>Show Plan for ${process.env.ENVIRONMENT}</summary>
-            
-            \`\`\`${process.env.PLAN}\`\`\`
-            
-            </details>
-            
-            *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`, Plan: \`${{ env.PLAN }}\`, Workflow: \`${{ github.workflow }}\`*`;
-              
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: output
-            })
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            ### Terraform Plan for ${{ matrix.environment }}
+            \`\`\`diff
+            ${{ steps.plan.outputs.stdout }}
+            \`\`\`
+          edit-mode: replace
+          token: ${{ secrets.GITHUB_TOKEN }}
