@@ -135,15 +135,8 @@ jobs:
               --ip-address $agentIP
 
       # Create a pull request comment with the Terraform plan output
-      - name: Create PR comment with plan output
-        if: success() || failure()
-        uses: peter-evans/create-or-update-comment@v3
+      - name: Post PR comment
+        uses: borchero/terraform-plan-comment@v2
         with:
-          issue-number: ${{ github.event.pull_request.number }}
-          body: |
-            ### Terraform Plan for ${{ matrix.environment }}
-            \`\`\`diff
-            ${{ steps.plan.outputs.stdout }}
-            \`\`\`
-          edit-mode: replace
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ github.token }}
+          planfile: ${{ matrix.environment }}.tfplan
