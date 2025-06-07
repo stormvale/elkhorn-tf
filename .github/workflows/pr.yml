@@ -140,4 +140,5 @@ jobs:
         with:
           token: ${{ github.token }}
           working-directory: ${{ matrix.environment }}
+          header: 'Terraform Plan: ${{ matrix.environment }}'
           planfile: ${{ matrix.environment }}.tfplan
