@@ -119,7 +119,7 @@ jobs:
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
         run: |
           cd ${{ matrix.environment }}
-          terraform plan -no-color
+          terraform plan -no-color -out=../plans/${{ matrix.environment }}.tfplan
 
       # Remove the GitHub runner IP from the storage account firewall rules to prevent unauthorized access.
       - name: Remove GitHub Runner IP from Whitelist
@@ -133,14 +133,15 @@ jobs:
               --resource-group "${{ secrets.TF_RESOURCE_GROUP_NAME }}" \
               --account-name "${{ secrets.TF_STORAGE_ACCOUNT_NAME }}" \
               --ip-address $agentIP
-              
+
       # Add a comment to pull requests with plan results
       - name: Add Plan Comment
         id: comment
         uses: actions/github-script@v6
         env:
           ENVIRONMENT: ${{ matrix.environment }}
-          PLAN: "terraform\n${{ steps.plan.outputs.stdout }}"
+          #PLAN: "terraform\n${{ steps.plan.outputs.stdout }}"
+          PLAN: "plans/${{ matrix.environment }}.tfplan"
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -149,7 +150,7 @@ jobs:
             #### Terraform Validation 🤖${{ steps.validate.outputs.stdout }}
             #### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
         
-            <details><summary>Show Plan</summary>
+            <details><summary>Show Plan for ${process.env.ENVIRONMENT}</summary>
             
             \`\`\`${process.env.PLAN}\`\`\`
             
