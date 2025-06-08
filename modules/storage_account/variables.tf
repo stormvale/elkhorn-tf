@@ -37,7 +37,7 @@ variable "account_tier" {
   }
 }
 
-variable "replication_type" {
+variable "account_replication_type" {
   description = "The Replication Type for the storage account. Valid options include LRS, GRS, ZRS etc."
   type        = string
   default     = "LRS"
