@@ -10,8 +10,8 @@ variable environment {
   type = string
 
   validation {
-    condition     = contains(["development", "production"], var.input_parameter)
-    error_message = "Allowed values for input_parameter are \"development\", \"production\"."
+    condition     = contains(["development", "production"], var.environment)
+    error_message = "Allowed values for environment are \"development\", \"production\"."
   }
 }
 
@@ -23,7 +23,7 @@ variable name {
 variable "tags" {
   description = "A map of tags to assign to the storage account. Tags for 'env' and 'managedby' are automatically assigned."
   type        = map(string)
-  default     = []
+  default     = {}
 }
 
 variable account_tier {
@@ -32,8 +32,8 @@ variable account_tier {
   default = "Standard"
 
   validation {
-    condition     = contains(["Standard", "Premium"], var.input_parameter)
-    error_message = "Allowed values for input_parameter are \"Standard\", \"Premium\"."
+    condition     = contains(["Standard", "Premium"], var.account_tier)
+    error_message = "Allowed values for account_tier are \"Standard\", \"Premium\"."
   }
 }
 
