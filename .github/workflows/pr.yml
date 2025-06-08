@@ -156,14 +156,13 @@ jobs:
   approval:
     runs-on: ubuntu-latest
     needs: plan
-    if: success() # Only proceed if plan job succeeds
     
     strategy:
       matrix:
         environment: [development, production]
 
     environment: ${{ matrix.environment }}
-    
+
     permissions:
       issues: write
 
@@ -181,7 +180,6 @@ jobs:
   apply:
     runs-on: ubuntu-latest
     needs: approval
-    if: success() # Only proceed if approval job succeeds
 
     strategy:
       matrix:
