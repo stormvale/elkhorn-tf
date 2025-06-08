@@ -1,9 +1,13 @@
-name: PR to Main
+name: Infra CI/CD
+description: |
+  This workflow is triggered on pull requests to the main branch and runs security scans using Checkov and outputs
+  the Terraform plan to a comment in the PR, as well as uploading it as an artifact. There is a manual approval step
+  before the plan can be applied in any environment. Currently designed to run in two environments: development and production.
 
 on:
-  # pull_request:
-  #   branches:
-  #     - main
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -14,14 +18,12 @@ permissions:
   contents: read # needed to clone repo
 
 jobs:
-  pr-infra-check:
+  plan:
     runs-on: ubuntu-latest
 
     strategy:
       matrix:
         environment: [development, production]
-
-    environment: ${{ matrix.environment }}
 
     steps:
       # Checkout the repository to the GitHub Actions runner
@@ -45,8 +47,7 @@ jobs:
         run: |
           az account show
 
-      # Add the GitHub runner IP to the storage account firewall rules to allow access to the Terraform state file.
-      # This is necessary because the storage account is private and only allows access from specific IPs.
+      # Add a network access rule to the storage account since it is private and only allows access from specific IPs.
       - name: Whitelist GitHub Runner IP
         uses: azure/CLI@v1
         with:
@@ -63,15 +64,14 @@ jobs:
       - name: Terraform Init
         id: init
         env:
-          STORAGE_ACCOUNT: ${{ secrets.TF_STORAGE_ACCOUNT_NAME }}
-          CONTAINER_NAME: ${{ secrets.TF_CONTAINER_NAME }}
           RESOURCE_GROUP_NAME: ${{ secrets.TF_RESOURCE_GROUP_NAME }}
+          STORAGE_ACCOUNT: ${{ secrets.TF_STORAGE_ACCOUNT_NAME }}
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
         run: |
           cd ${{ matrix.environment }}
-          terraform init -backend-config="storage_account_name=$STORAGE_ACCOUNT" -backend-config="container_name=$CONTAINER_NAME" -backend-config="resource_group_name=$RESOURCE_GROUP_NAME"
+          terraform init -backend-config="storage_account_name=$STORAGE_ACCOUNT" -backend-config="container_name=tfstate" -backend-config="resource_group_name=$RESOURCE_GROUP_NAME"
 
       # Run a Terraform fmt
       - name: Terraform format
@@ -119,7 +119,7 @@ jobs:
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
         run: |
           cd ${{ matrix.environment }}
-          terraform plan -no-color -out=../${{ matrix.environment }}.tfplan
+          terraform plan -no-color -out=${{ matrix.environment }}.tfplan
 
       # Remove the GitHub runner IP from the storage account firewall rules to prevent unauthorized access.
       - name: Remove GitHub Runner IP from Whitelist
@@ -134,9 +134,117 @@ jobs:
               --account-name "${{ secrets.TF_STORAGE_ACCOUNT_NAME }}" \
               --ip-address $agentIP
 
-      # Create a pull request comment with the Terraform plan output
+      # Create/update a pull request comment with the Terraform plan output
       - name: Post PR comment
         uses: borchero/terraform-plan-comment@v2
+        if: github.event_name == 'pull_request'
         with:
           token: ${{ github.token }}
+          working-directory: ${{ matrix.environment }}
+          header: 'Terraform Plan: ${{ matrix.environment }}'
           planfile: ${{ matrix.environment }}.tfplan
+
+      # Upload the Terraform plan as an artifact for later use in the apply job
+      - name: Upload Terraform plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.environment }}.tfplan
+          path: ${{ matrix.environment }}/${{ matrix.environment }}.tfplan
+          retention-days: 3
+
+  approval:
+    runs-on: ubuntu-latest
+    needs: plan
+    environment: approval # this is configured as a GitHub Environment that requires manual approval
+    steps:
+      - name: Wait for Manual Approval
+        run: echo "Approve this step in GitHub Environments before proceeding."
+
+  apply:
+    runs-on: ubuntu-latest
+    needs: approval
+
+    strategy:
+      matrix:
+        environment: [development, production]
+
+    environment: ${{ matrix.environment }}
+
+    steps:
+      # Checkout the repository to the GitHub Actions runner
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Download Terraform plan artifact from the previous job. If this doesn't exist we should fail early.
+      - name: Download Terraform Plan Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.environment }}.tfplan
+          path: ${{ matrix.environment }} # keep the plan in the environment directory
+
+      # Install the latest version of Terraform CLI and configure the Terraform CLI configuration file with a Terraform Cloud user API token
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      # Log into Azure with OIDC integration. (requires federated credentials on the App Registration in Azure.)
+      - name: 'Azure login'
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # Run az commands to confirm sub access
+      - name: 'Az account show'
+        run: |
+          az account show
+
+      # Add a network access rule to the storage account since it is private and only allows access from specific IPs.
+      - name: Whitelist GitHub Runner IP
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            set -eu
+            agentIP=$(curl -s https://api.ipify.org/)
+            az storage account network-rule add \
+              --resource-group "${{ secrets.TF_RESOURCE_GROUP_NAME }}" \
+              --account-name "${{ secrets.TF_STORAGE_ACCOUNT_NAME }}" \
+              --ip-address $agentIP
+            sleep 30
+
+      # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
+      - name: Terraform Init
+        id: init
+        env:
+          RESOURCE_GROUP_NAME: ${{ secrets.TF_RESOURCE_GROUP_NAME }}
+          STORAGE_ACCOUNT: ${{ secrets.TF_STORAGE_ACCOUNT_NAME }}
+          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+        run: |
+          cd ${{ matrix.environment }}
+          terraform init -backend-config="storage_account_name=$STORAGE_ACCOUNT" -backend-config="container_name=tfstate" -backend-config="resource_group_name=$RESOURCE_GROUP_NAME"
+
+      # Run a Terraform apply
+      - name: Terraform Apply
+        id: apply
+        env:
+          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+        run: |
+          cd ${{ matrix.environment }}
+          terraform apply -no-color ${{ matrix.environment }}.tfplan
+
+      # Remove the GitHub runner IP from the storage account firewall rules to prevent unauthorized access.
+      - name: Remove GitHub Runner IP from Whitelist
+        if: always()
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            set -eu
+            agentIP=$(curl -s https://api.ipify.org/)
+            az storage account network-rule remove  \
+              --resource-group "${{ secrets.TF_RESOURCE_GROUP_NAME }}" \
+              --account-name "${{ secrets.TF_STORAGE_ACCOUNT_NAME }}" \
+              --ip-address $agentIP

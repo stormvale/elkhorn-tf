@@ -12,21 +12,21 @@ data "azurerm_storage_account" "storage" {
   resource_group_name = data.azurerm_resource_group.rg.name
 }
 
-data "azurerm_storage_container" "tfstate_global" {
-  name                 = "tfstate-global"
+data "azurerm_storage_container" "tfstate" {
+  name                 = "tfstate"
   storage_account_name = data.azurerm_storage_account.storage.name
 }
 
 ###################################################################
 
-resource "azurerm_storage_container" "tfstate_dev" {
-  name                  = "tfstate-dev"
-  storage_account_name  = data.azurerm_storage_account.storage.name
-  container_access_type = "private"
-}
+# resource "azurerm_storage_container" "tfstate_dev" {
+#   name                  = "tfstate-dev"
+#   storage_account_name  = data.azurerm_storage_account.storage.name
+#   container_access_type = "private"
+# }
 
-resource "azurerm_storage_container" "tfstate_prod" {
-  name                  = "tfstate-prod"
-  storage_account_name  = data.azurerm_storage_account.storage.name
-  container_access_type = "private"
-}
+# resource "azurerm_storage_container" "tfstate_prod" {
+#   name                  = "tfstate-prod"
+#   storage_account_name  = data.azurerm_storage_account.storage.name
+#   container_access_type = "private"
+# }
