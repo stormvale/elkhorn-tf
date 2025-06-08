@@ -19,8 +19,8 @@ resource "azurerm_resource_group" "rg" {
 }
 
 # a storage account for dev environment
-module "storage" {
-  source = "../workflows/modules/storage_account"
+module "storage_account" {
+  source = "../modules/storage_account"
 
   resource_group_name = azurerm_resource_group.rg.name
   location = azurerm_resource_group.rg.location
