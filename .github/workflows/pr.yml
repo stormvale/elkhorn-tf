@@ -173,6 +173,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Download Terraform plan artifact from the previous job. If this doesn't exist we should fail early.
+      - name: Download Terraform Plan Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.environment }}.tfplan
+
       # Install the latest version of Terraform CLI and configure the Terraform CLI configuration file with a Terraform Cloud user API token
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -190,6 +196,19 @@ jobs:
         run: |
           az account show
 
+      # Add a network access rule to the storage account since it is private and only allows access from specific IPs.
+      - name: Whitelist GitHub Runner IP
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            set -eu
+            agentIP=$(curl -s https://api.ipify.org/)
+            az storage account network-rule add \
+              --resource-group "${{ secrets.TF_RESOURCE_GROUP_NAME }}" \
+              --account-name "${{ secrets.TF_STORAGE_ACCOUNT_NAME }}" \
+              --ip-address $agentIP
+            sleep 30
+
       # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
       - name: Terraform Init
         id: init
@@ -203,12 +222,6 @@ jobs:
           cd ${{ matrix.environment }}
           terraform init -backend-config="storage_account_name=$STORAGE_ACCOUNT" -backend-config="container_name=tfstate" -backend-config="resource_group_name=$RESOURCE_GROUP_NAME"
 
-      # Download Terraform plan artifact from the previous job
-      - name: Download Terraform Plan Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ matrix.environment }}.tfplan
-
       # Run a Terraform apply
       - name: Terraform Apply
         id: apply
@@ -219,3 +232,16 @@ jobs:
         run: |
           cd ${{ matrix.environment }}
           terraform apply -no-color ${{ matrix.environment }}.tfplan
+
+      # Remove the GitHub runner IP from the storage account firewall rules to prevent unauthorized access.
+      - name: Remove GitHub Runner IP from Whitelist
+        if: always()
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            set -eu
+            agentIP=$(curl -s https://api.ipify.org/)
+            az storage account network-rule remove  \
+              --resource-group "${{ secrets.TF_RESOURCE_GROUP_NAME }}" \
+              --account-name "${{ secrets.TF_STORAGE_ACCOUNT_NAME }}" \
+              --ip-address $agentIP
