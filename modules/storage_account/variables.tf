@@ -1,13 +1,13 @@
-variable resource_group_name {}
+variable "resource_group_name" {}
 
 variable "location" {
   description = "Azure region where the storage account should exist"
   type        = string
 }
 
-variable environment {
+variable "environment" {
   description = "The environment of the storage account. Valid options are 'development' and 'production'."
-  type = string
+  type        = string
 
   validation {
     condition     = contains(["development", "production"], var.environment)
@@ -15,7 +15,7 @@ variable environment {
   }
 }
 
-variable name {
+variable "name" {
   description = "The name of the storage account."
   type        = string
 }
@@ -26,10 +26,10 @@ variable "tags" {
   default     = {}
 }
 
-variable account_tier {
+variable "account_tier" {
   description = "The Tier of the storage account. Valid options are Standard and Premium."
-  type = string
-  default = "Standard"
+  type        = string
+  default     = "Standard"
 
   validation {
     condition     = contains(["Standard", "Premium"], var.account_tier)
@@ -37,7 +37,7 @@ variable account_tier {
   }
 }
 
-variable replication_type {
+variable "replication_type" {
   description = "The Replication Type for the storage account. Valid options include LRS, GRS, ZRS etc."
   type        = string
   default     = "LRS"

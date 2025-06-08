@@ -14,7 +14,7 @@ resource "azurerm_storage_account" "storage" {
   tags = merge(
     var.tags,
     tomap({
-      env = var.environment
+      env       = var.environment
       managedby = "terraform"
     })
   )
