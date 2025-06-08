@@ -4,7 +4,9 @@ provider "azurerm" {
 }
 
 module "naming" {
-  source = "Azure/naming/azurerm"
+  # source = "Azure/naming/azurerm"
+  # version = "0.4.2"
+  source = "git::https://github.com/Azure/terraform-azurerm-naming.git?ref=75d5afae4cb01f4446025e81f76af6b60c1f927b"
   suffix = ["dev"]
 }
 
