@@ -119,7 +119,7 @@ jobs:
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
         run: |
           cd ${{ matrix.environment }}
-          terraform plan -no-color -out=${{ matrix.environment }}.tfplan
+          terraform plan -no-color -out=${{ matrix.environment }}.tfplan -detailed-exitcode
 
       # Remove the GitHub runner IP from the storage account firewall rules to prevent unauthorized access.
       - name: Remove GitHub Runner IP from Whitelist

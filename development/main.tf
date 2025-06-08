@@ -12,7 +12,10 @@ module "naming" {
 resource "azurerm_resource_group" "rg" {
   name     = module.naming.resource_group.name
   location = var.location
-  tags     = local.tags
+  tags     = {
+    env = "development"
+    managedby = "terraform"
+  }
 }
 
 # a storage account for dev environment
