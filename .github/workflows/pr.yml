@@ -66,15 +66,14 @@ jobs:
       - name: Terraform Init
         id: init
         env:
-          STORAGE_ACCOUNT: ${{ secrets.TF_STORAGE_ACCOUNT_NAME }}
-          CONTAINER_NAME: ${{ secrets.TF_CONTAINER_NAME }}
           RESOURCE_GROUP_NAME: ${{ secrets.TF_RESOURCE_GROUP_NAME }}
+          STORAGE_ACCOUNT: ${{ secrets.TF_STORAGE_ACCOUNT_NAME }}
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
         run: |
           cd ${{ matrix.environment }}
-          terraform init -backend-config="storage_account_name=$STORAGE_ACCOUNT" -backend-config="container_name=$CONTAINER_NAME" -backend-config="resource_group_name=$RESOURCE_GROUP_NAME"
+          terraform init -backend-config="storage_account_name=$STORAGE_ACCOUNT" -backend-config="container_name=tfstate" -backend-config="resource_group_name=$RESOURCE_GROUP_NAME"
 
       # Run a Terraform fmt
       - name: Terraform format
@@ -215,15 +214,14 @@ jobs:
       - name: Terraform Init
         id: init
         env:
-          STORAGE_ACCOUNT: ${{ secrets.TF_STORAGE_ACCOUNT_NAME }}
-          CONTAINER_NAME: ${{ secrets.TF_CONTAINER_NAME }}
           RESOURCE_GROUP_NAME: ${{ secrets.TF_RESOURCE_GROUP_NAME }}
+          STORAGE_ACCOUNT: ${{ secrets.TF_STORAGE_ACCOUNT_NAME }}
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
         run: |
           cd ${{ matrix.environment }}
-          terraform init -backend-config="storage_account_name=$STORAGE_ACCOUNT" -backend-config="container_name=$CONTAINER_NAME" -backend-config="resource_group_name=$RESOURCE_GROUP_NAME"
+          terraform init -backend-config="storage_account_name=$STORAGE_ACCOUNT" -backend-config="container_name=tfstate" -backend-config="resource_group_name=$RESOURCE_GROUP_NAME"
 
       # Download Terraform plan artifact from the previous job
       - name: Download Terraform Plan Artifact
