@@ -178,6 +178,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: ${{ matrix.environment }}.tfplan
+          path: ${{ matrix.environment }} # keep the plan in the environment directory
 
       # Install the latest version of Terraform CLI and configure the Terraform CLI configuration file with a Terraform Cloud user API token
       - name: Setup Terraform
