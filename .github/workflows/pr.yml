@@ -1,4 +1,7 @@
-name: PR to Main
+name: Infra CI/CD
+description: |
+  This workflow is triggered on pull requests to the main branch and runs Terraform plan and apply steps.
+  It includes manual approval for the apply step and performs security scans using Checkov.
 
 on:
   pull_request:
@@ -171,7 +174,8 @@ jobs:
 
   apply:
     runs-on: ubuntu-latest
-    needs: plan
+    needs: approval
+    if: success() # Only proceed if approval job succeeds
 
     strategy:
       matrix:
