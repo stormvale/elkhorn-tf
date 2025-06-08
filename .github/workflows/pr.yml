@@ -158,6 +158,12 @@ jobs:
     needs: plan
     if: success() # Only proceed if plan job succeeds
     
+    strategy:
+      matrix:
+        environment: [development, production]
+
+    environment: ${{ matrix.environment }}
+    
     permissions:
       issues: write
 
