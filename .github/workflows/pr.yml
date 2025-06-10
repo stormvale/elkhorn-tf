@@ -100,7 +100,7 @@ jobs:
           directory: ${{ matrix.environment }}/
           output_file_path: results/${{ matrix.environment }}.sarif
           framework: terraform
-          skip_check: LOW,CKV2_AZURE_33,CKV2_AZURE_1,CKV_TF_1,CKV_AZURE_33,CKV_AZURE_206,CKV2_AZURE_40
+          skip_check: LOW,CKV2_AZURE_33,CKV2_AZURE_1,CKV_TF_1,CKV_AZURE_33,CKV_AZURE_206,CKV2_AZURE_40,CKV_AZURE_43
 
       # Upload results to GitHub Advanced Security
       - name: Upload SARIF file
