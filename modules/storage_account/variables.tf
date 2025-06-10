@@ -1,12 +1,15 @@
-variable "resource_group_name" {}
+variable "resource_group_name" {
+  description = "(Required) The name of the resource group where the resource should exist."
+  type        = string
+}
 
 variable "location" {
-  description = "Azure region where the storage account should exist"
+  description = "(Required) Azure region where the resource should exist"
   type        = string
 }
 
 variable "environment" {
-  description = "The environment of the storage account. Valid options are 'development' and 'production'."
+  description = "(Required) The environment of the resource. Valid options are 'development' and 'production'."
   type        = string
 
   validation {
@@ -16,12 +19,12 @@ variable "environment" {
 }
 
 variable "name" {
-  description = "The name of the storage account."
+  description = "(Required) The name of the resource."
   type        = string
 }
 
 variable "tags" {
-  description = "A map of tags to assign to the storage account. Tags for 'env' and 'managedby' are automatically assigned."
+  description = "A map of tags to assign to the resource. Tags for 'environment' and 'managedby' are automatically assigned."
   type        = map(string)
   default     = {}
 }

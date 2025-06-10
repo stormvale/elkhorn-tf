@@ -54,3 +54,12 @@ terraform output
 terraform console -var-file="xyz.tfvars" 
 terraform fmt
 ```
+
+## Azure Networking
+
+Given the network address range 10.0.0.0/24, Azure will reserve some addresses:
+
+- 10.0.0.0 Network Id
+- 10.0.0.1 Reserved by Azure for Default Gateway. Clients use this to communicate with computers outside of the subnet.
+- 10.0.0.2, 10.0.0.3 Reserved by Azure to map Azure DNS IP addresses to the virtual network space
+- 10.0.0.255 Network broadcast address. Used to communicate with all computers attached to the subnnet.
