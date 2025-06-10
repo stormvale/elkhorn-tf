@@ -11,5 +11,10 @@ output "virtual_network_id" {
 
 output "subnet_ids" {
   description = "Returns a map of the subnet names to the subnet IDs."
-  value       = { for s in keys(var.subnets) : s => azurerm_subnet.subnet[s].id }
+  value       = { for s in keys(var.subnets) : s => azurerm_subnet.subnets[s].id }
+}
+
+output "nsg_ids" {
+  description = "Returns a map of the network security group names to their IDs."
+  value       = { for k, v in azurerm_network_security_group.nsgs : k => v.id }
 }

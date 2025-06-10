@@ -18,4 +18,8 @@ terraform {
     use_azuread_auth = true
     use_oidc         = true
   }
+
+  # backend "local" {
+  #   path = "development.tfstate"
+  # }
 }
