@@ -4,21 +4,16 @@ variable "location" {
   default     = "westus2"
 }
 
-variable "location_short" {
-  description = "Short prefix for location"
+variable "location_map" {
+  description = "Maps a long location name to a short code. Used in resource names."
   type        = map(string)
   default = {
-    westus2       = "wus2",
-    canadacentral = "cnc"
+    "westus2"       = "wus2",
+    "canadacentral" = "cnc"
   }
 }
 
-variable "app_name" {
-  description = "The application name to use for naming resources"
-  type        = string
-  default     = "elkhorn"
-}
-
 locals {
-  location-short = lookup(var.location_short, var.location)
+  location_short    = lookup(var.location_map, var.location)
+  name_suffix       = "elkhorn-${local.location_short}"
 }
