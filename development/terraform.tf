@@ -9,13 +9,17 @@ terraform {
 
     random = {
       source  = "hashicorp/random"
-      version = "~>3.0"
+      version = "~>3.5"
     }
   }
 
   backend "azurerm" {
     key              = "development.tfstate"
-    use_oidc         = true
     use_azuread_auth = true
+    use_oidc         = true
   }
+
+  # backend "local" {
+  #   path = "development.tfstate"
+  # }
 }

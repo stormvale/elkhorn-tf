@@ -4,8 +4,10 @@ variable "location" {
   default     = "westus2"
 }
 
-variable "location_short" {
-  description = "Short prefix for location"
+####################################################################################
+
+variable "location_map" {
+  description = "Maps a long location name to a short code. Used in resource names."
   type        = map(string)
   default = {
     "westus2"       = "wus2",
@@ -13,26 +15,17 @@ variable "location_short" {
   }
 }
 
-variable "app_name" {
-  description = "The application name to use for naming resources"
-  type        = string
-  default     = "elkhorn"
-}
-
-variable "tags" {
-  description = "A map of tags to use for all resources"
-  type        = map(any)
+variable "environment_map" {
+  description = "Maps a long environment name to a short code. Used in resource names."
+  type        = map(string)
   default = {
-    managedby = "terraform"
+    "development" = "dev",
+    "production"  = "prod"
   }
 }
 
 locals {
-  location-short = lookup(var.location_short, var.location)
-  tags = merge(
-    var.tags,
-    tomap({
-      environment = "dev"
-    })
-  )
+  location_short    = lookup(var.location_map, var.location)
+  environment_short = lookup(var.environment_map, "development")
+  name_suffix       = "elkhorn-${local.environment_short}-${local.location_short}"
 }

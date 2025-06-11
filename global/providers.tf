@@ -14,7 +14,7 @@ terraform {
   }
 
   backend "azurerm" {
-    key                  = "global.tfstate"
+    key = "global.tfstate"
   }
 }
 
