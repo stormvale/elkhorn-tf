@@ -118,9 +118,12 @@ jobs:
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           TF_RESOURCE_GROUP_NAME: ${{ secrets.TF_RESOURCE_GROUP_NAME }}
-        run: |
-          cd global
-          terraform plan -no-color -out=global.tfplan -detailed-exitcode -var 'subscription_id=$ARM_SUBSCRIPTION_ID' -var 'client_id=$ARM_CLIENT_ID' -var 'resource_group_name=$TF_RESOURCE_GROUP_NAME'
+        run: >
+          cd global &&
+          terraform plan -no-color -out=global.tfplan -detailed-exitcode
+            -var 'subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}'
+            -var 'client_id=${{ secrets.AZURE_CLIENT_ID }}'
+            -var 'resource_group_name=${{ secrets.TF_RESOURCE_GROUP_NAME }}'
 
       # Remove the GitHub runner IP from the storage account firewall rules to prevent unauthorized access.
       - name: Remove GitHub Runner IP from Whitelist
