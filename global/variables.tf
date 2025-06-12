@@ -1,8 +1,19 @@
-variable "location" {
-  description = "Azure region where the resources should exist"
+variable "subscription_id" {
+  description = "(Required) The Azure subscription ID where the resources should exist."
   type        = string
-  default     = "westus2"
 }
+
+variable "client_id" {
+  description = "(Required) The client ID of the GitHub Actions OIDC application."
+  type        = string
+}
+
+variable "resource_group_name" {
+  description = "(Required) The name of the resource group where the resource should exist."
+  type        = string
+}
+
+####################################################################################
 
 variable "location_map" {
   description = "Maps a long location name to a short code. Used in resource names."
@@ -11,9 +22,4 @@ variable "location_map" {
     "westus2"       = "wus2",
     "canadacentral" = "cnc"
   }
-}
-
-locals {
-  location_short    = lookup(var.location_map, var.location)
-  name_suffix       = "elkhorn-${local.location_short}"
 }

@@ -23,7 +23,7 @@ jobs:
 
     strategy:
       matrix:
-        environment: [development, production]
+        environment: [global, development, production]
 
     steps:
       # Checkout the repository to the GitHub Actions runner
@@ -71,7 +71,7 @@ jobs:
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
         run: |
           cd ${{ matrix.environment }}
-          terraform init -backend-config="storage_account_name=$STORAGE_ACCOUNT" -backend-config="container_name=tfstate" -backend-config="resource_group_name=$RESOURCE_GROUP_NAME"
+          terraform init -backend-config="resource_group_name=$RESOURCE_GROUP_NAME" -backend-config="storage_account_name=$STORAGE_ACCOUNT" -backend-config="container_name=tfstate"
 
       # Run a Terraform fmt
       - name: Terraform format
@@ -83,7 +83,7 @@ jobs:
       # Run a Terraform validate
       - name: Terraform Validate
         id: validate
-        if: success() || failure()
+        if: (!cancelled())
         env:
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
@@ -104,7 +104,7 @@ jobs:
 
       # Upload results to GitHub Advanced Security
       - name: Upload SARIF file
-        if: success() || failure()
+        if: (!cancelled())
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: results
@@ -117,9 +117,13 @@ jobs:
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-        run: |
-          cd ${{ matrix.environment }}
+        run: >
+          cd ${{ matrix.environment }} &&
           terraform plan -no-color -out=${{ matrix.environment }}.tfplan -detailed-exitcode
+            -var 'subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}'
+            -var 'client_id=${{ secrets.AZURE_CLIENT_ID }}'
+            -var 'resource_group_name=${{ secrets.TF_RESOURCE_GROUP_NAME }}'
+            
 
       # Remove the GitHub runner IP from the storage account firewall rules to prevent unauthorized access.
       - name: Remove GitHub Runner IP from Whitelist
