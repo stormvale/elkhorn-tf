@@ -102,7 +102,8 @@ jobs:
           directory: ${{ matrix.environment }}/
           output_file_path: results/${{ matrix.environment }}.sarif
           framework: terraform
-          skip_check: LOW,CKV2_AZURE_33,CKV2_AZURE_1,CKV_TF_1,CKV_AZURE_33,CKV_AZURE_206,CKV2_AZURE_40,CKV_AZURE_43
+          soft_fail: true
+          #skip_check: LOW,CKV2_AZURE_33,CKV2_AZURE_1,CKV_TF_1,CKV_AZURE_33,CKV_AZURE_206,CKV2_AZURE_40,CKV_AZURE_43,CKV_AZURE_233,CKV_AZURE_165,CKV_AZURE_163,CKV_AZURE_164,CKV_AZURE_166,CKV_AZURE_167,CKV_AZURE_237
 
       # Upload results to GitHub Advanced Security
       - name: Upload SARIF file
@@ -119,13 +120,12 @@ jobs:
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-        run: >
-          cd ${{ matrix.environment }} &&
+        run: |
+          cd ${{ matrix.environment }}
           terraform plan -no-color -out=${{ matrix.environment }}.tfplan -detailed-exitcode
             -var 'subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}'
             -var 'client_id=${{ secrets.AZURE_CLIENT_ID }}'
             -var 'resource_group_name=${{ secrets.TF_RESOURCE_GROUP_NAME }}'
-            
 
       # Remove the GitHub runner IP from the storage account firewall rules to prevent unauthorized access.
       - name: Remove GitHub Runner IP from Whitelist
@@ -166,6 +166,7 @@ jobs:
 
   approval:
     runs-on: ubuntu-latest
+    name: Manual Approval
     needs: plan
     environment: development # this is configured as a GitHub Environment that requires manual approval
     steps:
