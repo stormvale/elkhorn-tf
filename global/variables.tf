@@ -4,7 +4,7 @@ variable "subscription_id" {
 }
 
 variable "client_id" {
-  description = "(Required) The client ID of the GitHub Actions OIDC application."
+  description = "(Required) The client ID of the GitHub Actions application."
   type        = string
 }
 
