@@ -8,8 +8,10 @@ on:
   pull_request:
     branches:
       - main
-    paths-ignore:
-      - 'global/**' # global resources are managed in a separate workflow
+    paths:
+      - 'development/**'
+      - 'production/**'
+      - 'modules/**'
   workflow_dispatch:
 
 permissions:
