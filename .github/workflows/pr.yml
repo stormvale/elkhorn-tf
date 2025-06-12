@@ -1,4 +1,4 @@
-name: Infra CI/CD
+name: Environment Resources
 description: |
   This workflow is triggered on pull requests to the main branch and runs security scans using Checkov and outputs
   the Terraform plan to a comment in the PR, as well as uploading it as an artifact. There is a manual approval step

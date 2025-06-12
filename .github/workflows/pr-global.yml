@@ -1,4 +1,4 @@
-name: Infra CI/CD
+name: Global Resources
 description: |
   This workflow is triggered on pull requests to the main branch for global resources (ie. resources shared between environments)
 
