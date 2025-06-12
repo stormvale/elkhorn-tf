@@ -29,8 +29,6 @@ jobs:
       # Install the Terraform CLI and configure the Terraform CLI configuration file with a Terraform Cloud user API token
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: '1.12.2'
 
       # Log into Azure with OIDC integration. (requires federated credentials on the App Registration in Azure.)
       - name: 'Azure login'
@@ -59,7 +57,7 @@ jobs:
             sleep 30
 
       # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
-      - name: Terraform Init
+      - name: Terraform init
         id: init
         env:
           RESOURCE_GROUP_NAME: ${{ secrets.TF_RESOURCE_GROUP_NAME }}
@@ -82,7 +80,7 @@ jobs:
           terraform fmt -check -recursive
   
       # Run a Terraform validate
-      - name: Terraform Validate
+      - name: Terraform validate
         id: validate
         if: (!cancelled())
         env:
@@ -118,7 +116,7 @@ jobs:
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           TF_RESOURCE_GROUP_NAME: ${{ secrets.TF_RESOURCE_GROUP_NAME }}
-        run: >
+        run: > # don't mess with the formatting of this run command
           cd global &&
           terraform plan -no-color -out=global.tfplan -detailed-exitcode
           -var 'subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}'
