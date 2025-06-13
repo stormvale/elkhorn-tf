@@ -23,11 +23,11 @@ resource "azurerm_container_registry" "acr" {
   location            = data.azurerm_resource_group.rg.location
   sku                 = "Basic"
 
-  admin_enabled                 = false # CKV_AZURE_137
-  public_network_access_enabled = false # CKV_AZURE_139
-  # data_endpoint_enabled       = true  # CKV_AZURE_237 (not available on Basic SKU)
-  # quarantine_policy_enabled   = true  # CKV_AZURE_166 (not available on Basic SKU)
-  # retention_policy_in_days    = 7     # CKV_AZURE_167 (not available on Basic SKU)
+  admin_enabled                   = false # CKV_AZURE_137
+  # public_network_access_enabled = false # CKV_AZURE_139 (not available on Basic SKU)
+  # data_endpoint_enabled         = true  # CKV_AZURE_237 (not available on Basic SKU)
+  # quarantine_policy_enabled     = true  # CKV_AZURE_166 (not available on Basic SKU)
+  # retention_policy_in_days      = 7     # CKV_AZURE_167 (not available on Basic SKU)
 
   # georeplications { (not available on Basic SKU)
   #   zone_redundancy_enabled = true
