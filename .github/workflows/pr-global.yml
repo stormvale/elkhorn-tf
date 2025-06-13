@@ -127,8 +127,8 @@ jobs:
       - name: Show plan output
         id: plan_outputs
         run: |
-          exit_code="${{ steps.plan.outputs.detailed-exitcode }}"
-          echo "exit_code=${exit_code}" >> "$GITHUB_OUTPUT"
+          exitcode="${{ steps.plan.outputs.exitcode }}"
+          echo "exitcode=${exitcode}" >> "$GITHUB_OUTPUT"
 
       # Remove the GitHub runner IP from the storage account firewall rules to prevent unauthorized access.
       - name: Remove GitHub Runner IP from Whitelist
@@ -162,7 +162,7 @@ jobs:
           retention-days: 3
 
     outputs:
-      exitcode: ${{ steps.plan.outputs.detailed-exitcode }}
+      exitcode: ${{ steps.plan.outputs.exitcode }}
 
   apply:
     runs-on: ubuntu-latest
