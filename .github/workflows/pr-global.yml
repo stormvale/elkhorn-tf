@@ -1,17 +1,13 @@
-name: Environment Resources
+name: Global Resources
 description: |
-  This workflow is triggered on pull requests to the main branch and runs security scans using Checkov and outputs
-  the Terraform plan to a comment in the PR, as well as uploading it as an artifact. There is a manual approval step
-  before the plan can be applied in any environment. Currently designed to run in two environments: development and production.
+  This workflow is triggered on pull requests to the main branch for global resources (ie. resources shared between environments)
 
 on:
   pull_request:
     branches:
       - main
     paths:
-      - 'development/**'
-      - 'production/**'
-      - 'modules/**'
+      - 'global/**'
   workflow_dispatch:
 
 permissions:
@@ -25,20 +21,14 @@ jobs:
   plan:
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        environment: [development, production]
-
     steps:
       # Checkout the repository to the GitHub Actions runner
       - name: Checkout
         uses: actions/checkout@v4
       
-      # Install the latest version of Terraform CLI and configure the Terraform CLI configuration file with a Terraform Cloud user API token
+      # Install the Terraform CLI and configure the Terraform CLI configuration file with a Terraform Cloud user API token
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: '1.12.2'
 
       # Log into Azure with OIDC integration. (requires federated credentials on the App Registration in Azure.)
       - name: 'Azure login'
@@ -67,7 +57,7 @@ jobs:
             sleep 30
 
       # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
-      - name: Terraform Init
+      - name: Terraform init
         id: init
         env:
           RESOURCE_GROUP_NAME: ${{ secrets.TF_RESOURCE_GROUP_NAME }}
@@ -76,18 +66,21 @@ jobs:
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
         run: |
-          cd ${{ matrix.environment }}
-          terraform init -force-copy -backend-config="resource_group_name=$RESOURCE_GROUP_NAME" -backend-config="storage_account_name=$STORAGE_ACCOUNT" -backend-config="container_name=tfstate"
+          cd global
+          terraform init -force-copy \
+            -backend-config="resource_group_name=$RESOURCE_GROUP_NAME" \
+            -backend-config="storage_account_name=$STORAGE_ACCOUNT" \
+            -backend-config="container_name=tfstate"
 
       # Run a Terraform fmt
       - name: Terraform format
         id: fmt
         run: |
-          cd ${{ matrix.environment }}
+          cd global
           terraform fmt -check -recursive
   
       # Run a Terraform validate
-      - name: Terraform Validate
+      - name: Terraform validate
         id: validate
         if: (!cancelled())
         env:
@@ -95,7 +88,7 @@ jobs:
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
         run: |
-          cd ${{ matrix.environment }}
+          cd global
           terraform validate -no-color
 
       # Perform a security scan of the terraform code using checkov
@@ -103,8 +96,8 @@ jobs:
         id: checkov
         uses: bridgecrewio/checkov-action@master
         with:
-          directory: ${{ matrix.environment }}/
-          output_file_path: results/${{ matrix.environment }}.sarif
+          directory: global/
+          output_file_path: results/global.sarif
           framework: terraform
           soft_fail: true
 
@@ -120,12 +113,20 @@ jobs:
       - name: Terraform plan
         id: plan
         env:
-          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          # ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-        run: |
-          cd ${{ matrix.environment }}
-          terraform plan -no-color -out=${{ matrix.environment }}.tfplan -detailed-exitcode
+          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          TF_RESOURCE_GROUP_NAME: ${{ secrets.TF_RESOURCE_GROUP_NAME }}
+        run: > # don't mess with the formatting of this run command
+          cd global &&
+          terraform plan -no-color -out=global.tfplan -detailed-exitcode
+          -var 'subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}'
+          -var 'client_id=${{ secrets.AZURE_CLIENT_ID }}'
+          -var 'resource_group_name=${{ secrets.TF_RESOURCE_GROUP_NAME }}'
+
+      # Log the plan output. 0 = no changes, 1 = error, 2 = changes
+      - name: Show plan output
+        id: plan_outputs
+        run: exitcode="${{ steps.plan.outputs.exitcode }}"
 
       # Remove the GitHub runner IP from the storage account firewall rules to prevent unauthorized access.
       - name: Remove GitHub Runner IP from Whitelist
@@ -135,7 +136,7 @@ jobs:
           inlineScript: |
             set -eu
             agentIP=$(curl -s https://api.ipify.org/)
-            az storage account network-rule remove  \
+            az storage account network-rule remove \
               --resource-group "${{ secrets.TF_RESOURCE_GROUP_NAME }}" \
               --account-name "${{ secrets.TF_STORAGE_ACCOUNT_NAME }}" \
               --ip-address $agentIP
@@ -146,54 +147,26 @@ jobs:
         if: github.event_name == 'pull_request'
         with:
           token: ${{ github.token }}
-          working-directory: ${{ matrix.environment }}
-          header: 'Terraform Plan: ${{ matrix.environment }}'
-          planfile: ${{ matrix.environment }}.tfplan
+          working-directory: global
+          header: 'Terraform Plan: global'
+          planfile: global.tfplan
 
       # Upload the Terraform plan as an artifact for later use in the apply job
       - name: Upload Terraform plan
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.environment }}.tfplan
-          path: ${{ matrix.environment }}/${{ matrix.environment }}.tfplan
+          name: global.tfplan
+          path: global/global.tfplan
           retention-days: 3
 
-      - name: Generate plan outputs
-        id: plan_outputs
-        run: |
-          environment="${{ matrix.environment }}"
-          exit_code="${{ steps.plan.outputs.detailed-exitcode }}"
-          echo "exit_code_${environment}=${exit_code}" >> "$GITHUB_OUTPUT"
-
-    outputs: # github does not yet fully support matix outputs :-/
-      developmentHasChanges: ${{ matrix.environment == 'development' && steps.plan.outputs.detailed-exitcode == 2 }} # 2 = succeeded with non-empty diff
-      productionHasChanges: ${{ matrix.environment == 'production' && steps.plan.outputs.detailed-exitcode == 2 }}
-
-  # temp job to just output the plan results
-  show-plan-results:
-    runs-on: ubuntu-latest
-    needs: [ plan ]
-    steps:
-      - run: echo '${{ toJSON(needs.plan.outputs) }}'
-
-  approval:
-    runs-on: ubuntu-latest
-    name: Manual Approval
-    needs: [ plan ]
-    environment: development # this is configured as a GitHub Environment that requires manual approval
-    steps:
-      - name: Wait for Manual Approval
-        run: echo "Approve this step in GitHub Environments before proceeding."
+    outputs:
+      exitcode: ${{ steps.plan.outputs.exitcode }}
 
   apply:
     runs-on: ubuntu-latest
-    needs: [ approval ]
-
-    strategy:
-      matrix:
-        environment: [development, production]
-
-    environment: ${{ matrix.environment }}
+    needs: plan
+    if: needs.plan.outputs.exitcode == 2
+    environment: production
 
     steps:
       # Checkout the repository to the GitHub Actions runner
@@ -204,12 +177,14 @@ jobs:
       - name: Download Terraform Plan Artifact
         uses: actions/download-artifact@v4
         with:
-          name: ${{ matrix.environment }}.tfplan
-          path: ${{ matrix.environment }} # keep the plan in the environment directory
+          name: global.tfplan
+          path: global # keep the plan in the environment directory
 
-      # Install the latest version of Terraform CLI and configure the Terraform CLI configuration file with a Terraform Cloud user API token
+      # Install the Terraform CLI and configure the Terraform CLI configuration file with a Terraform Cloud user API token
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.12.2'
 
       # Log into Azure with OIDC integration. (requires federated credentials on the App Registration in Azure.)
       - name: 'Azure login'
@@ -247,19 +222,18 @@ jobs:
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
         run: |
-          cd ${{ matrix.environment }}
+          cd global
           terraform init -backend-config="storage_account_name=$STORAGE_ACCOUNT" -backend-config="container_name=tfstate" -backend-config="resource_group_name=$RESOURCE_GROUP_NAME"
 
-      # Run a Terraform apply
+      # Run a Terraform apply for the generated plan
       - name: Terraform Apply
         id: apply
         env:
+          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }} # required by azurerm provider
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
         run: |
-          cd ${{ matrix.environment }}
-          terraform apply -no-color ${{ matrix.environment }}.tfplan
+          cd global
+          terraform apply -no-color global.tfplan
 
       # Remove the GitHub runner IP from the storage account firewall rules to prevent unauthorized access.
       - name: Remove GitHub Runner IP from Whitelist
