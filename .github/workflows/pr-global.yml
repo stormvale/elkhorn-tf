@@ -123,6 +123,13 @@ jobs:
           -var 'client_id=${{ secrets.AZURE_CLIENT_ID }}'
           -var 'resource_group_name=${{ secrets.TF_RESOURCE_GROUP_NAME }}'
 
+      # Log the plan output. 0 = no changes, 1 = error, 2 = changes
+      - name: Show plan output
+        id: plan_outputs
+        run: |
+          exit_code="${{ steps.plan.outputs.detailed-exitcode }}"
+          echo "exit_code=${exit_code}" >> "$GITHUB_OUTPUT"
+
       # Remove the GitHub runner IP from the storage account firewall rules to prevent unauthorized access.
       - name: Remove GitHub Runner IP from Whitelist
         if: always()
@@ -160,7 +167,7 @@ jobs:
   apply:
     runs-on: ubuntu-latest
     needs: plan
-    if: (needs.plan.outputs.exitcode == 2) # 2 = succeeded with non-empty diff
+    if: needs.plan.outputs.exitcode == 2
     environment: production
 
     steps:
