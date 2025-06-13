@@ -126,9 +126,7 @@ jobs:
       # Log the plan output. 0 = no changes, 1 = error, 2 = changes
       - name: Show plan output
         id: plan_outputs
-        run: |
-          exitcode="${{ steps.plan.outputs.exitcode }}"
-          echo "exitcode=${exitcode}" >> "$GITHUB_OUTPUT"
+        run: exitcode="${{ steps.plan.outputs.exitcode }}"
 
       # Remove the GitHub runner IP from the storage account firewall rules to prevent unauthorized access.
       - name: Remove GitHub Runner IP from Whitelist
@@ -227,19 +225,15 @@ jobs:
           cd global
           terraform init -backend-config="storage_account_name=$STORAGE_ACCOUNT" -backend-config="container_name=tfstate" -backend-config="resource_group_name=$RESOURCE_GROUP_NAME"
 
-      # Run a Terraform apply
+      # Run a Terraform apply for the generated plan
       - name: Terraform Apply
         id: apply
         env:
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }} # required by azurerm provider
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          TF_RESOURCE_GROUP_NAME: ${{ secrets.TF_RESOURCE_GROUP_NAME }}
         run: |
           cd global
-          terraform apply -no-color global.tfplan \
-            -var 'subscription_id=$ARM_SUBSCRIPTION_ID' \
-            -var 'client_id=$ARM_CLIENT_ID' \
-            -var 'resource_group_name=$TF_RESOURCE_GROUP_NAME'
+          terraform apply -no-color global.tfplan
 
       # Remove the GitHub runner IP from the storage account firewall rules to prevent unauthorized access.
       - name: Remove GitHub Runner IP from Whitelist
