@@ -22,8 +22,8 @@ resource "azurerm_container_registry" "acr" {
   resource_group_name = data.azurerm_resource_group.rg.name
   location            = data.azurerm_resource_group.rg.location
   sku                 = "Basic"
+  admin_enabled       = false # CKV_AZURE_137
 
-  admin_enabled                   = false # CKV_AZURE_137
   # public_network_access_enabled = false # CKV_AZURE_139 (not available on Basic SKU)
   # data_endpoint_enabled         = true  # CKV_AZURE_237 (not available on Basic SKU)
   # quarantine_policy_enabled     = true  # CKV_AZURE_166 (not available on Basic SKU)
