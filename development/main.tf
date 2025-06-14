@@ -48,3 +48,52 @@ module "storage_account" {
     managedby   = "terraform"
   }
 }
+
+resource "azurerm_service_plan" "asp" {
+  name                = "asp-${local.name_suffix}" # asp-elkhorn-dev-wus2
+  resource_group_name = azurerm_resource_group.rg.name
+  location            = azurerm_resource_group.rg.location
+  os_type             = "Linux"
+  sku_name            = "F1"
+
+  tags = {
+    environment = "development"
+    managedby   = "terraform"
+  }
+}
+
+locals {
+  api_weather_app_name = "api-weather"
+}
+
+resource "azurerm_linux_web_app" "api_weather" {
+  name                = "${local.api_weather_app_name}-${local.name_suffix}" # api-weather-elkhorn-dev-wus2
+  resource_group_name = azurerm_resource_group.rg.name
+  location            = azurerm_resource_group.rg.location
+  service_plan_id     = azurerm_service_plan.asp.id
+
+  site_config {
+    always_on           = false # must be false for free tier
+    minimum_tls_version = "1.2"
+
+    application_stack {
+      docker_registry_url      = "https://ghcr.io"
+      docker_image_name        = "ghcr.io/stormvale/weather-api:latest"
+      docker_registry_username = var.docker_registry_username
+      docker_registry_password = var.docker_registry_password
+    }
+  }
+
+  identity {
+    type = "SystemAssigned"
+  }
+
+  app_settings = {
+    "WEBSITE_RUN_FROM_PACKAGE" = "1"
+  }
+
+  tags = {
+    environment = "development"
+    managedby   = "terraform"
+  }
+}
