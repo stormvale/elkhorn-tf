@@ -17,6 +17,11 @@ permissions:
   security-events: write # Needed to upload chekov scan results
   contents: read # needed to clone repo
 
+env:
+  # used by the Terraform CLI to authenticate with the GitHub Container Registry. needed for init & apply.
+  TF_VAR_docker_registry_username: ${{ github.actor}}
+  TF_VAR_docker_registry_password: ${{ secrets.GITHUB_TOKEN }}
+
 jobs:
   plan:
     runs-on: ubuntu-latest
@@ -257,8 +262,6 @@ jobs:
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          TF_VAR_docker_registry_username: ${{ github.actor}}
-          TF_VAR_docker_registry_password: ${{ secrets.GITHUB_TOKEN }} # might not need to use a PAT?
         run: |
           cd ${{ matrix.environment }}
           terraform apply -no-color ${{ matrix.environment }}.tfplan
