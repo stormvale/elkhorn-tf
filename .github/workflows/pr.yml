@@ -1,8 +1,4 @@
-name: Environment Resources
-description: |
-  This workflow is triggered on pull requests to the main branch and runs security scans using Checkov and outputs
-  the Terraform plan to a comment in the PR, as well as uploading it as an artifact. There is a manual approval step
-  before the plan can be applied in any environment. Currently designed to run in two environments: development and production.
+name: infra
 
 on:
   pull_request:
@@ -15,7 +11,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  id-token: write # needed to POST to Github Actions Token Service?
+  id-token: write # needed to POST to Github Actions Token Service
   issues: write
   pull-requests: write # needed to write plan changes to PR
   security-events: write # Needed to upload chekov scan results
@@ -50,8 +46,7 @@ jobs:
       
       # Run az commands to confirm sub access
       - name: 'Az account show'
-        run: |
-          az account show
+        run: az account show
 
       # Add a network access rule to the storage account since it is private and only allows access from specific IPs.
       - name: Whitelist GitHub Runner IP
@@ -75,9 +70,12 @@ jobs:
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-        run: |
-          cd ${{ matrix.environment }}
-          terraform init -force-copy -backend-config="resource_group_name=$RESOURCE_GROUP_NAME" -backend-config="storage_account_name=$STORAGE_ACCOUNT" -backend-config="container_name=tfstate"
+        run: >
+          cd ${{ matrix.environment }} &&
+          terraform init -force-copy
+          -backend-config="resource_group_name=$RESOURCE_GROUP_NAME"
+          -backend-config="storage_account_name=$STORAGE_ACCOUNT"
+          -backend-config="container_name=tfstate"
 
       # Run a Terraform fmt
       - name: Terraform format
@@ -122,7 +120,6 @@ jobs:
         env:
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          # ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
         run: |
           cd ${{ matrix.environment }}
           terraform plan -no-color -out=${{ matrix.environment }}.tfplan -detailed-exitcode
@@ -243,20 +240,25 @@ jobs:
         env:
           RESOURCE_GROUP_NAME: ${{ secrets.TF_RESOURCE_GROUP_NAME }}
           STORAGE_ACCOUNT: ${{ secrets.TF_STORAGE_ACCOUNT_NAME }}
-          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-        run: |
-          cd ${{ matrix.environment }}
-          terraform init -backend-config="storage_account_name=$STORAGE_ACCOUNT" -backend-config="container_name=tfstate" -backend-config="resource_group_name=$RESOURCE_GROUP_NAME"
+        run: >
+          cd ${{ matrix.environment }} &&
+          terraform init -force-copy
+          -backend-config="resource_group_name=$RESOURCE_GROUP_NAME"
+          -backend-config="storage_account_name=$STORAGE_ACCOUNT"
+          -backend-config="container_name=tfstate"
 
       # Run a Terraform apply
       - name: Terraform Apply
         id: apply
         env:
-          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          TF_VAR_docker_registry_username: ${{ github.actor}}
+          TF_VAR_docker_registry_password: ${{ secrets.GITHUB_TOKEN }} # might not need to use a PAT?
         run: |
           cd ${{ matrix.environment }}
           terraform apply -no-color ${{ matrix.environment }}.tfplan
