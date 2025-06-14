@@ -8,7 +8,6 @@ variable "docker_registry_password" {
   description = "(Required) GitHub password to access the GitHub Container Registry"
   type        = string
   sensitive   = true
-  ephemeral   = true # don't save in plan
 }
 
 variable "location" {
