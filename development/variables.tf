@@ -1,3 +1,15 @@
+
+variable "docker_registry_username" {
+  description = "(Required) GitHub username to access the GitHub Container Registry"
+  type        = string
+}
+
+variable "docker_registry_password" {
+  description = "(Required) GitHub password to access the GitHub Container Registry"
+  type        = string
+  sensitive   = true
+}
+
 variable "location" {
   description = "Azure region where the resources should exist"
   type        = string
