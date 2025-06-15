@@ -35,9 +35,11 @@ variable "vnet_address_space" {
 }
 
 variable "subnets" {
-  type        = map(string)
-  description = "(Optional) Name and address space for subnets, defaults to subnet1 and 10.0.0.0/24."
-  default     = { subnet1 = "10.0.0.0/24" }
+  type = map(object({
+    address_prefixes  = list(string)
+    service_endpoints = list(string)
+  }))
+  description = "(Optional) Subnets to create in the virtual network. The key is the subnet name"
 }
 
 variable "tags" {

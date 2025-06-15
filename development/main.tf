@@ -27,8 +27,14 @@ module "networking" {
   environment         = "development"
 
   subnets = {
-    gateway = "10.0.0.0/24" # /24 => 255 addresses
-    cae     = "10.0.1.0/24"
+    gateway = {
+      address_prefixes  = ["10.0.0.0/24"] # /24 => 255 addresses
+      service_endpoints = []
+    }
+    cae = {
+      address_prefixes  = ["10.0.1.0/24"]
+      service_endpoints = ["Microsoft.Storage"]
+    }
   }
 
   tags = {
