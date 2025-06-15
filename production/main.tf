@@ -1,6 +1,7 @@
 provider "azurerm" {
   features {}
-  use_oidc = true
+  subscription_id = var.subscription_id
+  use_oidc        = true
 }
 
 # the resource group for prod environment

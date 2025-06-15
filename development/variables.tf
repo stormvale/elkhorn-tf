@@ -1,13 +1,12 @@
 
-variable "docker_registry_username" {
-  description = "(Required) GitHub username to access the GitHub Container Registry"
+variable "subscription_id" {
+  description = "(Required) The Azure subscription ID where the resources should exist."
   type        = string
 }
 
-variable "docker_registry_password" {
-  description = "(Required) GitHub password to access the GitHub Container Registry"
+variable "registry_username" {
+  description = "(Required) GitHub username to access the GitHub Container Registry"
   type        = string
-  sensitive   = true
 }
 
 variable "location" {

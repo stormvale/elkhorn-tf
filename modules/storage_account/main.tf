@@ -15,6 +15,13 @@ resource "azurerm_storage_account" "storage" {
     expiration_period = "01.12:00:00" # dd.HH.mm.ss
   }
 
+  # see also "azurerm_storage_account_network_rules"
+  network_rules {
+    default_action             = "Deny"
+    bypass                     = ["Logging", "Metrics", "AzureServices"]
+    virtual_network_subnet_ids = var.subnet_ids
+  }
+
   tags = merge(
     var.tags,
     tomap({

@@ -14,32 +14,25 @@ data "azurerm_resource_group" "rg" {
   name = var.resource_group_name
 }
 
-###################################################################
-# container registry and role assignment for GitHub Actions service principal
+data "azurerm_client_config" "current" {}
 
-resource "azurerm_container_registry" "acr" {
-  name                = replace("acr-elkhorn-${lookup(var.location_map, data.azurerm_resource_group.rg.location)}", "-", "") # acrelkhornwus2
-  resource_group_name = data.azurerm_resource_group.rg.name
-  location            = data.azurerm_resource_group.rg.location
-  sku                 = "Basic"
-  admin_enabled       = false # CKV_AZURE_137
+resource "azurerm_key_vault" "vault" {
+  name                       = "kv-${local.name_suffix}" # kv-elkhorn-wus2
+  location                   = var.location
+  resource_group_name        = data.azurerm_resource_group.rg.name
+  tenant_id                  = data.azurerm_client_config.current.tenant_id
+  sku_name                   = "standard"
+  soft_delete_retention_days = 7
 
-  # public_network_access_enabled = false # CKV_AZURE_139 (not available on Basic SKU)
-  # data_endpoint_enabled         = true  # CKV_AZURE_237 (not available on Basic SKU)
-  # quarantine_policy_enabled     = true  # CKV_AZURE_166 (not available on Basic SKU)
-  # retention_policy_in_days      = 7     # CKV_AZURE_167 (not available on Basic SKU)
+  # keep purge protection disabled. it complicates things and prevents
+  # you from deleting the keyvault for like 90 days or something.
+  purge_protection_enabled = false
 
-  # georeplications { (not available on Basic SKU)
-  #   zone_redundancy_enabled = true
-  #   location                = "East US"
-  # }
+  # access_policy { ... }
 }
 
-resource "azurerm_role_assignment" "github_acr_push" {
-  scope                = azurerm_container_registry.acr.id
-  role_definition_name = "AcrPush"
-  principal_id         = data.azuread_service_principal.github_actions_sp.object_id
-  description          = "Allow GitHub Actions to push to ACR"
+resource "azurerm_key_vault_secret" "ghcr_PAT" {
+  name         = "github-pat"
+  value        = var.github_pat
+  key_vault_id = azurerm_key_vault.vault.id
 }
-
-###################################################################
