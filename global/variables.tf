@@ -13,6 +13,18 @@ variable "resource_group_name" {
   type        = string
 }
 
+variable "github_pat" {
+  description = "(Required) The PAT used to authenticate against the GitHub Container Registry."
+  type        = string
+  sensitive   = true
+}
+
+variable "location" {
+  description = "(Optional) Azure region where the resources should exist"
+  type        = string
+  default     = "westus2"
+}
+
 ####################################################################################
 
 variable "location_map" {
@@ -22,4 +34,9 @@ variable "location_map" {
     "westus2"       = "wus2",
     "canadacentral" = "cnc"
   }
+}
+
+locals {
+  location_short = lookup(var.location_map, var.location)
+  name_suffix    = "elkhorn-${local.location_short}"
 }

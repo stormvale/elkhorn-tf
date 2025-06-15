@@ -57,20 +57,20 @@ jobs:
             sleep 30
 
       # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
-      - name: Terraform init
+      - name: Terraform Init
         id: init
         env:
           RESOURCE_GROUP_NAME: ${{ secrets.TF_RESOURCE_GROUP_NAME }}
           STORAGE_ACCOUNT: ${{ secrets.TF_STORAGE_ACCOUNT_NAME }}
-          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-        run: |
-          cd global
-          terraform init -force-copy \
-            -backend-config="resource_group_name=$RESOURCE_GROUP_NAME" \
-            -backend-config="storage_account_name=$STORAGE_ACCOUNT" \
-            -backend-config="container_name=tfstate"
+        run: >
+          cd global &&
+          terraform init -force-copy
+          -backend-config="resource_group_name=$RESOURCE_GROUP_NAME"
+          -backend-config="storage_account_name=$STORAGE_ACCOUNT"
+          -backend-config="container_name=tfstate"
 
       # Run a Terraform fmt
       - name: Terraform format
@@ -113,15 +113,15 @@ jobs:
       - name: Terraform plan
         id: plan
         env:
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          TF_RESOURCE_GROUP_NAME: ${{ secrets.TF_RESOURCE_GROUP_NAME }}
+          # ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          # ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          TF_VAR_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          TF_VAR_client_id: ${{ secrets.AZURE_CLIENT_ID }}
+          TF_VAR_resource_group_name: ${{ secrets.TF_RESOURCE_GROUP_NAME }}
+          TF_VAR_ghcr_password: ${{ secrets.GHCR_PAT }}
         run: > # don't mess with the formatting of this run command
           cd global &&
           terraform plan -no-color -out=global.tfplan -detailed-exitcode
-          -var 'subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}'
-          -var 'client_id=${{ secrets.AZURE_CLIENT_ID }}'
-          -var 'resource_group_name=${{ secrets.TF_RESOURCE_GROUP_NAME }}'
 
       # Log the plan output. 0 = no changes, 1 = error, 2 = changes
       - name: Show plan output
@@ -218,12 +218,15 @@ jobs:
         env:
           RESOURCE_GROUP_NAME: ${{ secrets.TF_RESOURCE_GROUP_NAME }}
           STORAGE_ACCOUNT: ${{ secrets.TF_STORAGE_ACCOUNT_NAME }}
-          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-        run: |
-          cd global
-          terraform init -backend-config="storage_account_name=$STORAGE_ACCOUNT" -backend-config="container_name=tfstate" -backend-config="resource_group_name=$RESOURCE_GROUP_NAME"
+        run: >
+          cd global &&
+          terraform init -force-copy
+          -backend-config="resource_group_name=$RESOURCE_GROUP_NAME"
+          -backend-config="storage_account_name=$STORAGE_ACCOUNT"
+          -backend-config="container_name=tfstate"
 
       # Run a Terraform apply for the generated plan
       - name: Terraform Apply
