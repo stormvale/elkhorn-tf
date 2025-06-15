@@ -1,9 +1,13 @@
 provider "azurerm" {
   features {}
-  use_oidc = true
+  subscription_id = var.subscription_id
+  use_oidc        = true
 }
 
-# the resource group for dev environment
+#############################################################################
+# RESOURCES FOR THE DEV ENVIRONMENT
+#############################################################################
+
 resource "azurerm_resource_group" "rg" {
   name     = "rg-${local.name_suffix}" # rg-elkhorn-dev-wus2
   location = var.location
@@ -13,19 +17,18 @@ resource "azurerm_resource_group" "rg" {
   }
 }
 
-# the networking module for dev environment
 module "networking" {
   source = "../modules/networking"
 
   resource_group_name = azurerm_resource_group.rg.name
   location            = azurerm_resource_group.rg.location
   vnet_name           = "vnet-${local.name_suffix}" # vnet-elkhorn-dev-wus2
-  vnet_address_space  = ["10.0.0.0/16"]
+  vnet_address_space  = ["10.0.0.0/16"]             # /16 => first 16 bits (ie. 2 octets) locked => 65k addresses
   environment         = "development"
 
   subnets = {
-    gateway = "10.0.1.0/24"
-    subnet2 = "10.0.2.0/24"
+    gateway = "10.0.0.0/24" # /24 => 255 addresses
+    cae     = "10.0.1.0/24"
   }
 
   tags = {
@@ -34,7 +37,6 @@ module "networking" {
   }
 }
 
-# a storage account for dev environment
 module "storage_account" {
   source = "../modules/storage_account"
 
@@ -42,6 +44,7 @@ module "storage_account" {
   location            = azurerm_resource_group.rg.location
   name                = replace("st-${local.name_suffix}", "-", "") # stelkhorndevwus2
   environment         = "development"
+  subnet_ids          = [ module.networking.subnets["cae"] ]
 
   tags = {
     environment = "development"
@@ -49,12 +52,35 @@ module "storage_account" {
   }
 }
 
-resource "azurerm_service_plan" "asp" {
-  name                = "asp-${local.name_suffix}" # asp-elkhorn-dev-wus2
-  resource_group_name = azurerm_resource_group.rg.name
+resource "azurerm_log_analytics_workspace" "log_workspace" {
+  name                = "log-${local.name_suffix}"
   location            = azurerm_resource_group.rg.location
-  os_type             = "Linux"
-  sku_name            = "F1"
+  resource_group_name = azurerm_resource_group.rg.name
+  sku                 = "PerGB2018"
+  retention_in_days   = 30
+  daily_quota_gb      = 1
+}
+
+###########################################################################
+# resources for weather-api app
+
+data "azurerm_key_vault" "kv_shared" {
+  name                = "kv-elkhorn-${local.location_short}"
+  resource_group_name = "rg-elkhorn-${local.location_short}"
+}
+
+data "azurerm_key_vault_secret" "github_pat" {
+  name         = "github-pat"
+  key_vault_id = data.azurerm_key_vault.kv_shared.id
+}
+
+resource "azurerm_container_app_environment" "env" {
+  name                       = "cae-${local.name_suffix}"
+  location                   = var.location
+  resource_group_name        = azurerm_resource_group.rg.name
+  log_analytics_workspace_id = azurerm_log_analytics_workspace.log_workspace.id
+  infrastructure_subnet_id   = module.networking.subnets["cae"]
+  zone_redundancy_enabled    = false
 
   tags = {
     environment = "development"
@@ -62,38 +88,42 @@ resource "azurerm_service_plan" "asp" {
   }
 }
 
-locals {
-  api_weather_app_name = "api-weather"
-}
+resource "azurerm_container_app" "api_weather" {
+  name                         = "api-weather"
+  container_app_environment_id = azurerm_container_app_environment.env.id
+  resource_group_name          = azurerm_resource_group.rg.name
+  revision_mode                = "Single"
 
-resource "azurerm_linux_web_app" "api_weather" {
-  name                = "${local.api_weather_app_name}-${local.name_suffix}" # api-weather-elkhorn-dev-wus2
-  resource_group_name = azurerm_resource_group.rg.name
-  location            = azurerm_resource_group.rg.location
-  service_plan_id     = azurerm_service_plan.asp.id
-
-  site_config {
-    always_on           = false # must be false for free tier
-    minimum_tls_version = "1.2"
-
-    application_stack {
-      docker_registry_url      = "https://ghcr.io"
-      docker_image_name        = "ghcr.io/stormvale/weather-api:latest"
-      docker_registry_username = var.docker_registry_username
-      docker_registry_password = var.docker_registry_password
+  template {
+    container {
+      name   = "api-weather"
+      image  = "ghcr.io/stormvale/weather-api:latest"
+      cpu    = 0.25
+      memory = "0.5Gi"
     }
+    min_replicas = 0
+    max_replicas = 2
+
+    # scale rules
   }
 
-  identity {
-    type = "SystemAssigned"
+  registry {
+    server               = "ghcr.io"
+    username             = var.registry_username
+    password_secret_name = data.azurerm_key_vault_secret.github_pat.name
   }
+}
 
-  app_settings = {
-    "WEBSITE_RUN_FROM_PACKAGE" = "1"
-  }
+# a managed identity for this container app
+resource "azurerm_user_assigned_identity" "api_weather_id" {
+  name                = "id-${azurerm_container_app.api_weather.name}"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.rg.name
+}
 
-  tags = {
-    environment = "development"
-    managedby   = "terraform"
-  }
+# this container app is allowed to contribute to log analytics
+resource "azurerm_role_assignment" "role" {
+  scope                = azurerm_log_analytics_workspace.log_workspace.id
+  principal_id         = azurerm_user_assigned_identity.api_weather_id.principal_id
+  role_definition_name = "Log Analytics Contributor"
 }

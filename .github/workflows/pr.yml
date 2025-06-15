@@ -17,11 +17,6 @@ permissions:
   security-events: write # Needed to upload chekov scan results
   contents: read # needed to clone repo
 
-env:
-  # used by the Terraform CLI to authenticate with the GitHub Container Registry. needed for plan & apply.
-  TF_VAR_docker_registry_username: ${{ github.actor}}
-  TF_VAR_docker_registry_password: ${{ secrets.GITHUB_TOKEN }}
-
 jobs:
   plan:
     runs-on: ubuntu-latest
@@ -72,8 +67,8 @@ jobs:
         env:
           RESOURCE_GROUP_NAME: ${{ secrets.TF_RESOURCE_GROUP_NAME }}
           STORAGE_ACCOUNT: ${{ secrets.TF_STORAGE_ACCOUNT_NAME }}
-          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
         run: >
           cd ${{ matrix.environment }} &&
@@ -124,7 +119,8 @@ jobs:
         id: plan
         env:
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          TF_VAR_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          TF_VAR_registry_username: ${{ github.actor }}
         run: |
           cd ${{ matrix.environment }}
           terraform plan -no-color -out=${{ matrix.environment }}.tfplan -detailed-exitcode
@@ -160,16 +156,15 @@ jobs:
           path: ${{ matrix.environment }}/${{ matrix.environment }}.tfplan
           retention-days: 3
 
-      - name: Generate plan outputs
+      - name: Display plan outputs
         id: plan_outputs
         run: |
-          environment="${{ matrix.environment }}"
-          exit_code="${{ steps.plan.outputs.detailed-exitcode }}"
-          echo "exit_code_${environment}=${exit_code}" >> "$GITHUB_OUTPUT"
+          exitcode="${{ steps.plan.outputs.exitcode }}"
+          echo "exitcode_${{ matrix.environment }}=${exitcode}" >> "$GITHUB_OUTPUT"
 
     outputs: # github does not yet fully support matix outputs :-/
-      developmentHasChanges: ${{ matrix.environment == 'development' && steps.plan.outputs.detailed-exitcode == 2 }} # 2 = succeeded with non-empty diff
-      productionHasChanges: ${{ matrix.environment == 'production' && steps.plan.outputs.detailed-exitcode == 2 }}
+      developmentHasChanges: ${{ matrix.environment == 'development' && steps.plan.outputs.exitcode == 2 }} # 2 = succeeded with non-empty diff
+      productionHasChanges: ${{ matrix.environment == 'production' && steps.plan.outputs.exitcode == 2 }}
 
   # temp job to just output the plan results
   show-plan-results:
@@ -223,8 +218,7 @@ jobs:
 
       # Run az commands to confirm sub access
       - name: 'Az account show'
-        run: |
-          az account show
+        run: az account show
 
       # Add a network access rule to the storage account since it is private and only allows access from specific IPs.
       - name: Whitelist GitHub Runner IP
