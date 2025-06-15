@@ -44,7 +44,7 @@ module "storage_account" {
   location            = azurerm_resource_group.rg.location
   name                = replace("st-${local.name_suffix}", "-", "") # stelkhorndevwus2
   environment         = "development"
-  subnet_ids          = [ module.networking.subnets["cae"] ]
+  subnet_ids          = [module.networking.subnets["cae"]]
 
   tags = {
     environment = "development"

@@ -6,7 +6,6 @@ on:
   pull_request:
     branches:
       - main
-    paths:
       - 'global/**'
   workflow_dispatch:
 
@@ -103,7 +102,6 @@ jobs:
 
       # Upload results to GitHub Advanced Security
       - name: Upload SARIF file
-        if: (!cancelled())
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: results
