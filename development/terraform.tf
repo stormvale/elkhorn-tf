@@ -13,14 +13,14 @@ terraform {
     }
   }
 
-  # backend "azurerm" {
-  #   key              = "development.tfstate"
-  #   use_azuread_auth = true
-  #   use_oidc         = true
-  # }
-  backend "local" {
-    path = "development.tfstate"
+  backend "azurerm" {
+    key              = "development.tfstate"
+    use_azuread_auth = true
+    use_oidc         = true
   }
+  # backend "local" {
+  #   path = "development.tfstate"
+  # }
 
   # To switch to local backend from remote state
   # ============================================
