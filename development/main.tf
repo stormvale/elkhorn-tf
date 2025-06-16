@@ -31,10 +31,6 @@ module "networking" {
       address_prefixes  = ["10.0.0.0/24"] # 10.0.0.0 - 10.0.0.255
       service_endpoints = []
     }
-    # cae = { # may need delegation on this subnet...?
-    #   address_prefixes  = ["10.0.1.0/23"]
-    #   service_endpoints = ["Microsoft.Storage"]
-    # }
   }
 
   tags = {
@@ -121,6 +117,7 @@ resource "azurerm_subnet" "cae_subnet" {
   resource_group_name  = azurerm_resource_group.rg.name
   virtual_network_name = module.networking.virtual_network_name
   address_prefixes     = ["10.0.2.0/23"] # 10.0.2.0 - 10.0.3.255 (cae subnet requires at least /23)
+  service_endpoints    = ["Microsoft.Storage"]
 
   delegation {
     name = "Microsoft.App.environments"

@@ -4,10 +4,9 @@ description: |
 
 on:
   pull_request:
-    branches:
-      - main
-    paths:
-      - 'global/**'
+    branches: [ main]
+    paths: [ 'global/**' ]
+    paths-ignore: ['modules/**', 'development/**', 'production/**' ]
   workflow_dispatch:
 
 permissions:
@@ -82,7 +81,6 @@ jobs:
       # Run a Terraform validate
       - name: Terraform validate
         id: validate
-        if: (!cancelled())
         env:
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
