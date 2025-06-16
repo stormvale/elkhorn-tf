@@ -5,7 +5,6 @@ description: |
 on:
   pull_request:
     branches: [ main]
-    paths: [ 'global/**' ]
     paths-ignore: ['modules/**', 'development/**', 'production/**' ]
   workflow_dispatch:
 
