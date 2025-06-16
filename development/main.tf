@@ -96,8 +96,12 @@ resource "azurerm_container_app_environment" "cae" {
   # workload profiles:
   #  - require min /27 subnet for vnet integration
   #  - subnet must be delegated to Microsoft.App/environments
-  # infrastructure_subnet_id = module.networking.subnets["cae"]
   infrastructure_subnet_id = azurerm_subnet.cae_subnet.id
+
+  # Azure automatically creates this separate resource group to hold the infrastructure components.
+  # It is managed by the Azure Container Apps platform. Container Apps are still deployed into the
+  # main resource group containing the Container Apps Environment.
+  infrastructure_resource_group_name = "${azurerm_resource_group.rg.name}-infra"
 
   workload_profile {
     name                  = "Consumption"
