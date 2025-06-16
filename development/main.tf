@@ -130,58 +130,58 @@ resource "azurerm_subnet" "cae_subnet" {
   }
 }
 
-# resource "azurerm_container_app" "api_weather" {
-#   name                         = "api-weather"
-#   container_app_environment_id = azurerm_container_app_environment.cae.id
-#   resource_group_name          = azurerm_resource_group.rg.name
-#   revision_mode                = "Single"
+resource "azurerm_container_app" "api_weather" {
+  name                         = "api-weather"
+  container_app_environment_id = azurerm_container_app_environment.cae.id
+  resource_group_name          = azurerm_resource_group.rg.name
+  revision_mode                = "Single"
 
-#   template {
-#     container {
-#       name   = "api.weather"
-#       image  = "ghcr.io/stormvale/api.weather:latest"
-#       cpu    = 0.25
-#       memory = "0.5Gi"
+  template {
+    container {
+      name   = "api.weather"
+      image  = "ghcr.io/stormvale/api.weather:latest"
+      cpu    = 0.25
+      memory = "0.5Gi"
 
-#       env { # environment variables here
-#         name  = "DEFAULT_CITY"
-#         value = "Vancouver"
-#       }
-#     }
-#   }
+      env { # environment variables here
+        name  = "DEFAULT_CITY"
+        value = "Vancouver"
+      }
+    }
+  }
 
-#   secret {
-#     name  = "gh-pat-secret"
-#     value = data.azurerm_key_vault_secret.github_pat.value
-#   }
+  secret {
+    name  = "gh-pat-secret"
+    value = data.azurerm_key_vault_secret.github_pat.value
+  }
 
-#   registry {
-#     server               = "ghcr.io"
-#     username             = var.registry_username
-#     password_secret_name = "gh-pat-secret"
-#   }
+  registry {
+    server               = "ghcr.io"
+    username             = var.registry_username
+    password_secret_name = "gh-pat-secret"
+  }
 
-#   tags = {
-#     environment = "development"
-#     managedby   = "terraform"
-#   }
-# }
+  tags = {
+    environment = "development"
+    managedby   = "terraform"
+  }
+}
 
-# # a managed identity for this container app
-# resource "azurerm_user_assigned_identity" "api_weather_id" {
-#   name                = "id-${azurerm_container_app.api_weather.name}"
-#   location            = var.location
-#   resource_group_name = azurerm_resource_group.rg.name
+# a managed identity for this container app
+resource "azurerm_user_assigned_identity" "api_weather_id" {
+  name                = "id-${azurerm_container_app.api_weather.name}"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.rg.name
 
-#   tags = {
-#     environment = "development"
-#     managedby   = "terraform"
-#   }
-# }
+  tags = {
+    environment = "development"
+    managedby   = "terraform"
+  }
+}
 
-# # this container app is allowed to contribute to log analytics
-# resource "azurerm_role_assignment" "role" {
-#   scope                = azurerm_log_analytics_workspace.log_workspace.id
-#   principal_id         = azurerm_user_assigned_identity.api_weather_id.principal_id
-#   role_definition_name = "Log Analytics Contributor"
-# }
+# this container app is allowed to contribute to log analytics
+resource "azurerm_role_assignment" "role" {
+  scope                = azurerm_log_analytics_workspace.log_workspace.id
+  principal_id         = azurerm_user_assigned_identity.api_weather_id.principal_id
+  role_definition_name = "Log Analytics Contributor"
+}

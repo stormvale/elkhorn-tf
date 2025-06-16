@@ -171,15 +171,22 @@ jobs:
     steps:
       - run: echo '${{ toJSON(needs.plan.outputs) }}'
 
+
   approval:
     runs-on: ubuntu-latest
     name: Manual Approval
     needs: [ plan ]
     environment: production
     if: success() # Only proceed if plan job succeeds
+
     steps:
       - name: Wait for Manual Approval
         run: echo "Approve this step in GitHub Environments before proceeding."
+
+    outputs: # need to pass the outputs along
+      developmentHasChanges: ${{ needs.plan.outputs.developmentHasChanges }}
+      productionHasChanges: ${{ needs.plan.outputs.productionHasChanges }}
+
 
   apply:
     runs-on: ubuntu-latest
@@ -248,9 +255,12 @@ jobs:
           -backend-config="storage_account_name=$STORAGE_ACCOUNT"
           -backend-config="container_name=tfstate"
 
-      # Run a Terraform apply
+      # Run a Terraform apply (only if there are changes for the environment)
       - name: Terraform Apply
         id: apply
+        # if: |
+        #   (matrix.environment == 'development' && needs.approval.outputs.developmentHasChanges == 'true') ||
+        #   (matrix.environment == 'production' && needs.approval.outputs.productionHasChanges == 'true')
         env:
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}

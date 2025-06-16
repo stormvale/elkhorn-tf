@@ -4,8 +4,8 @@ description: |
 
 on:
   pull_request:
-    branches: [ main]
-    paths-ignore: ['modules/**', 'development/**', 'production/**' ]
+    branches: [main]
+    paths-ignore: ['modules/**', 'development/**', 'production/**']
   workflow_dispatch:
 
 permissions:
