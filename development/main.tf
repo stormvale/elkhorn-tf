@@ -186,14 +186,14 @@ resource "azurerm_container_app" "api_weather" {
 }
 
 # this container app is allowed to contribute to log analytics
-resource "azurerm_role_assignment" "role" {
+resource "azurerm_role_assignment" "role_weather_api_log" {
   scope                = azurerm_log_analytics_workspace.log_workspace.id
   principal_id         = azurerm_container_app.api_weather.identity[0].principal_id
   role_definition_name = "Log Analytics Contributor"
 }
 
 # this container app is allowed to access keyvault secrets
-resource "azurerm_role_assignment" "role" {
+resource "azurerm_role_assignment" "role_weather_api_kv" {
   scope                = azurerm_container_app.api_weather.id
   principal_id         = azurerm_container_app.api_weather.identity[0].principal_id
   role_definition_name = "Key Vault Secrets User"
