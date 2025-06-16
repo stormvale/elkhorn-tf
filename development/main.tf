@@ -142,7 +142,7 @@ resource "azurerm_container_app" "api_weather" {
 
   template {
     container {
-      name   = "api.weather"
+      name   = "api-weather" # lower case alphanumeric characters or '-'. max 63 chars
       image  = "ghcr.io/stormvale/api.weather:latest"
       cpu    = 0.25
       memory = "0.5Gi"
