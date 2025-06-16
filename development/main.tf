@@ -150,10 +150,15 @@ resource "azurerm_container_app" "api_weather" {
     }
   }
 
+  secret {
+    name  = "gh-pat-secret"
+    value = data.azurerm_key_vault_secret.github_pat.value
+  }
+
   registry {
     server               = "ghcr.io"
     username             = var.registry_username
-    password_secret_name = data.azurerm_key_vault_secret.github_pat.name
+    password_secret_name = "gh-pat-secret"
   }
 
   tags = {

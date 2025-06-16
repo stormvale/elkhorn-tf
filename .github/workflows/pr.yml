@@ -171,14 +171,15 @@ jobs:
     steps:
       - run: echo '${{ toJSON(needs.plan.outputs) }}'
 
-  # approval:
-  #   runs-on: ubuntu-latest
-  #   name: Manual Approval
-  #   needs: [ plan ]
-  #   environment: production 
-  #   steps:
-  #     - name: Wait for Manual Approval
-  #       run: echo "Approve this step in GitHub Environments before proceeding."
+  approval:
+    runs-on: ubuntu-latest
+    name: Manual Approval
+    needs: [ plan ]
+    environment: production
+    if: success() # Only proceed if plan job succeeds
+    steps:
+      - name: Wait for Manual Approval
+        run: echo "Approve this step in GitHub Environments before proceeding."
 
   apply:
     runs-on: ubuntu-latest
