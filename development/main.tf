@@ -101,7 +101,7 @@ resource "azurerm_container_app_environment" "cae" {
   # Azure automatically creates this separate resource group to hold the infrastructure components.
   # It is managed by the Azure Container Apps platform. Container Apps are still deployed into the
   # main resource group containing the Container Apps Environment.
-  infrastructure_resource_group_name = "${azurerm_resource_group.rg.name}-infra"
+  infrastructure_resource_group_name = "${azurerm_resource_group.rg.name}-cae"
 
   workload_profile {
     name                  = "Consumption"
@@ -154,9 +154,23 @@ resource "azurerm_container_app" "api_weather" {
     }
   }
 
+  identity {
+    type = "SystemAssigned"
+  }
+
+  ingress {
+    external_enabled = true
+    target_port      = 8080
+    transport        = "http"
+
+    traffic_weight {
+      percentage = 100
+    }
+  }
+
   secret {
-    name  = "gh-pat-secret"
-    value = data.azurerm_key_vault_secret.github_pat.value
+    name  = "ConnectionStrings:postgres"
+    value = ""
   }
 
   registry {
@@ -171,21 +185,16 @@ resource "azurerm_container_app" "api_weather" {
   }
 }
 
-# a managed identity for this container app
-resource "azurerm_user_assigned_identity" "api_weather_id" {
-  name                = "id-${azurerm_container_app.api_weather.name}"
-  location            = var.location
-  resource_group_name = azurerm_resource_group.rg.name
-
-  tags = {
-    environment = "development"
-    managedby   = "terraform"
-  }
-}
-
 # this container app is allowed to contribute to log analytics
 resource "azurerm_role_assignment" "role" {
   scope                = azurerm_log_analytics_workspace.log_workspace.id
-  principal_id         = azurerm_user_assigned_identity.api_weather_id.principal_id
+  principal_id         = azurerm_container_app.api_weather.identity[0].principal_id
   role_definition_name = "Log Analytics Contributor"
+}
+
+# this container app is allowed to access keyvault secrets
+resource "azurerm_role_assignment" "role" {
+  scope                = azurerm_container_app.api_weather.id
+  principal_id         = azurerm_container_app.api_weather.identity[0].principal_id
+  role_definition_name = "Key Vault Secrets User"
 }

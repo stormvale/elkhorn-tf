@@ -258,9 +258,9 @@ jobs:
       # Run a Terraform apply (only if there are changes for the environment)
       - name: Terraform Apply
         id: apply
-        # if: |
-        #   (matrix.environment == 'development' && needs.approval.outputs.developmentHasChanges == 'true') ||
-        #   (matrix.environment == 'production' && needs.approval.outputs.productionHasChanges == 'true')
+        if: |
+          (matrix.environment == 'development' && needs.approval.outputs.developmentHasChanges == 'true') ||
+          (matrix.environment == 'production' && needs.approval.outputs.productionHasChanges == 'true')
         env:
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
