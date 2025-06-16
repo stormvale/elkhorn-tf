@@ -169,7 +169,7 @@ resource "azurerm_container_app" "api_weather" {
   }
 
   secret {
-    name  = "ConnectionStrings:postgres"
+    name  = "conn-string-postgres"
     value = ""
   }
 
