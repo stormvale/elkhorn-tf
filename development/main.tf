@@ -164,7 +164,8 @@ resource "azurerm_container_app" "api_weather" {
     transport        = "http"
 
     traffic_weight {
-      percentage = 100
+      latest_revision = true
+      percentage      = 100
     }
   }
 
