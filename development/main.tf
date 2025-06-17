@@ -169,10 +169,16 @@ resource "azurerm_container_app" "api_weather" {
     }
   }
 
+  secret {
+    name                = "gh-pat-secret"                             # name of the container app secret
+    identity            = "System"                                    # identity to use for accessing keyvault reference (must have role to access kv secrets)
+    key_vault_secret_id = data.azurerm_key_vault_secret.github_pat.id # the value of this secret is stored in a keyvault
+  }
+
   registry {
     server               = "ghcr.io"
     username             = var.registry_username
-    password_secret_name = "gh-pat-secret"
+    password_secret_name = "gh-pat-secret" # reference to container app secret
   }
 
   tags = {
