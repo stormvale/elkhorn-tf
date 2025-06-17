@@ -31,9 +31,9 @@ resource "azurerm_key_vault" "vault" {
   purge_protection_enabled = false
 
   network_acls {
-    bypass                     = "AzureServices"
-    default_action             = "Deny"
-    virtual_network_subnet_ids = ["10.0.2.0/23"] # "cae_subnet" CIRD block
+    bypass         = "AzureServices"
+    default_action = "Deny"
+    ip_rules       = ["10.0.2.0/23"] # "cae_subnet" CIRD block
   }
 
   # access_policy { ... }
