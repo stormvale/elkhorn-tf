@@ -1,4 +1,4 @@
-name: infra
+name: Environment Resources
 
 on:
   pull_request:

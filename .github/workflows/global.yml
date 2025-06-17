@@ -1,6 +1,4 @@
-name: Global Resources
-description: |
-  This workflow is triggered on pull requests to the main branch for global resources (ie. resources shared between environments)
+name: Shared Resources
 
 on:
   pull_request:
@@ -38,8 +36,7 @@ jobs:
       
       # Run az commands to confirm sub access
       - name: 'Az account show'
-        run: |
-          az account show
+        run: az account show
 
       # Add a network access rule to the storage account since it is private and only allows access from specific IPs.
       - name: Whitelist GitHub Runner IP
