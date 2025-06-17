@@ -148,7 +148,7 @@ resource "azurerm_container_app" "api_weather" {
       memory = "0.5Gi"
 
       env { # environment variables can refer to secrets
-        name        = "ConnectionStrings:postgres"
+        name        = "ConnectionStrings__postgres"
         secret_name = "conn-string-db"
       }
     }
