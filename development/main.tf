@@ -169,11 +169,6 @@ resource "azurerm_container_app" "api_weather" {
     }
   }
 
-  secret {
-    name  = "conn-string-postgres"
-    value = ""
-  }
-
   registry {
     server               = "ghcr.io"
     username             = var.registry_username
