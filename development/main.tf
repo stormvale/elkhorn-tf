@@ -154,10 +154,10 @@ resource "azurerm_container_app" "api_weather" {
     }
   }
 
-  identity {
-    type         = "UserAssigned" # "SystemAssigned"
-    identity_ids = [azurerm_user_assigned_identity.api_weather_id.id]
-  }
+  # identity {
+  #   type         = "UserAssigned" # "SystemAssigned"
+  #   identity_ids = [azurerm_user_assigned_identity.api_weather_id.id]
+  # }
 
   ingress {
     external_enabled = true
@@ -198,23 +198,6 @@ resource "azurerm_container_app" "api_weather" {
   }
 }
 
-# this container app is allowed to contribute to log analytics.
-resource "azurerm_role_assignment" "role_weather_api_log" {
-  scope                = azurerm_log_analytics_workspace.log_workspace.id
-  principal_id         = azurerm_container_app.api_weather.identity[0].principal_id
-  role_definition_name = "Log Analytics Contributor"
-}
-
-# this container app is allowed to access keyvault secrets.
-# Note: even when we create a SystemAssigned managed identity for the container app and then also assign
-# the 'Key Vault Secrets User' role to this identity, it looks like we are still getting a 403 Forbidden
-# error when trying to access the secret :-/ changing to use User Assigned managed identity instead.
-# resource "azurerm_role_assignment" "role_weather_api_kv" {
-#   scope                = azurerm_container_app.api_weather.id
-#   principal_id         = azurerm_container_app.api_weather.identity[0].principal_id # SystemAssigned identity
-#   role_definition_name = "Key Vault Secrets User"
-# }
-
 # a user assigned managed identity for this container app.
 resource "azurerm_user_assigned_identity" "api_weather_id" {
   name                = "id-${azurerm_container_app.api_weather.name}"
@@ -232,3 +215,19 @@ resource "azurerm_role_assignment" "role_weather_api_kv" {
   principal_id         = azurerm_user_assigned_identity.api_weather_id.principal_id
   role_definition_name = "Key Vault Secrets User"
 }
+
+# this container app is allowed to contribute to log analytics.
+resource "azurerm_role_assignment" "role_weather_api_log" {
+  scope                = azurerm_log_analytics_workspace.log_workspace.id
+  principal_id         = azurerm_container_app.api_weather.identity[0].principal_id
+  role_definition_name = "Log Analytics Contributor"
+}
+
+# Note: even when we create a SystemAssigned managed identity for the container app and then also assign
+# the 'Key Vault Secrets User' role to this identity, it looks like we are still getting a 403 Forbidden
+# error when trying to access the secret :-/ changing to use User Assigned managed identity instead.
+# resource "azurerm_role_assignment" "role_weather_api_kv" {
+#   scope                = azurerm_container_app.api_weather.id
+#   principal_id         = azurerm_container_app.api_weather.identity[0].principal_id # SystemAssigned identity
+#   role_definition_name = "Key Vault Secrets User"
+# }

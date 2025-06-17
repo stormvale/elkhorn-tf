@@ -1,9 +1,9 @@
 name: Shared Resources
 
 on:
-  pull_request:
-    branches: [main]
-    paths-ignore: ['modules/**', 'development/**', 'production/**']
+  # pull_request:
+  #   branches: [main]
+  #   paths-ignore: ['modules/**', 'development/**', 'production/**']
   workflow_dispatch:
 
 permissions:
