@@ -32,8 +32,7 @@ resource "azurerm_key_vault" "vault" {
 
   network_acls {
     bypass         = "AzureServices"
-    default_action = "Deny"
-    ip_rules       = ["10.0.2.0/23"] # "cae_subnet" CIRD block
+    default_action = "Allow"
   }
 
   # access_policy { ... }
