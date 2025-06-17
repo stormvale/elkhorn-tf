@@ -147,9 +147,9 @@ resource "azurerm_container_app" "api_weather" {
       cpu    = 0.25
       memory = "0.5Gi"
 
-      env { # environment variables here
-        name  = "DEFAULT_CITY"
-        value = "Vancouver"
+      env { # environment variables can refer to secrets
+        name  = "ConnectionStrings:postgres"
+        secret_name = "conn-string-db"
       }
     }
   }
@@ -173,6 +173,11 @@ resource "azurerm_container_app" "api_weather" {
     name                = "gh-pat-secret"                             # name of the container app secret
     identity            = "System"                                    # identity to use for accessing keyvault reference (must have role to access kv secrets)
     key_vault_secret_id = data.azurerm_key_vault_secret.github_pat.id # the value of this secret is stored in a keyvault
+  }
+
+  secret {
+    name  = "conn-string-db"
+    value = "<db connection string goes here>"
   }
 
   registry {

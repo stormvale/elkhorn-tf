@@ -17,12 +17,14 @@ data "azurerm_resource_group" "rg" {
 data "azurerm_client_config" "current" {}
 
 resource "azurerm_key_vault" "vault" {
-  name                       = "kv-${local.name_suffix}" # kv-elkhorn-wus2
-  location                   = var.location
-  resource_group_name        = data.azurerm_resource_group.rg.name
-  tenant_id                  = data.azurerm_client_config.current.tenant_id
-  sku_name                   = "standard"
-  soft_delete_retention_days = 7
+  name                            = "kv-${local.name_suffix}" # kv-elkhorn-wus2
+  location                        = var.location
+  resource_group_name             = data.azurerm_resource_group.rg.name
+  tenant_id                       = data.azurerm_client_config.current.tenant_id
+  sku_name                        = "standard"
+  soft_delete_retention_days      = 7
+  enabled_for_template_deployment = true
+  enable_rbac_authorization       = true
 
   # keep purge protection disabled. it complicates things and prevents
   # you from deleting the keyvault for like 90 days or something.
