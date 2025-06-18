@@ -183,6 +183,11 @@ jobs:
       - name: Wait for Manual Approval
         run: echo "Approve this step in GitHub Environments before proceeding."
 
+      - name: Show Plan Outputs
+        run: |
+          echo "developmentHasChanges: ${{ needs.plan.outputs.developmentHasChanges }}"
+          echo "productionHasChanges: ${{ needs.plan.outputs.productionHasChanges }}"
+
     outputs: # need to pass the outputs along
       developmentHasChanges: ${{ needs.plan.outputs.developmentHasChanges }}
       productionHasChanges: ${{ needs.plan.outputs.productionHasChanges }}
@@ -239,12 +244,37 @@ jobs:
               --ip-address $agentIP
             sleep 30
 
-      # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
-      - name: Terraform Init
-        id: init
+      # temp
+      - name: Show Plan Outputs
+        run: |
+          echo "developmentHasChanges: ${{ needs.approval.outputs.developmentHasChanges }}"
+          echo "productionHasChanges: ${{ needs.approval.outputs.productionHasChanges }}"
+
+      # temp
+      - name: check condition 1
+        run: echo "check condition 1"
         if: |
           (matrix.environment == 'development' && needs.approval.outputs.developmentHasChanges == 'true') ||
           (matrix.environment == 'production' && needs.approval.outputs.productionHasChanges == 'true')
+
+      # temp
+      - name: check condition 2
+        run: echo "check condition 2"
+        if: |
+          (${{matrix.environment == 'development' && needs.approval.outputs.developmentHasChanges == 'true'}}) ||
+          (${{matrix.environment == 'production' && needs.approval.outputs.productionHasChanges == 'true'}})
+
+      # temp
+      - name: check condition 3
+        run: echo ${{needs.approval.outputs.developmentHasChanges == 'true' }}
+        if: matrix.environment == 'development'
+
+      # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
+      - name: Terraform Init
+        id: init
+        # if: |
+        #   (matrix.environment == 'development' && needs.approval.outputs.developmentHasChanges == 'true') ||
+        #   (matrix.environment == 'production' && needs.approval.outputs.productionHasChanges == 'true')
         env:
           RESOURCE_GROUP_NAME: ${{ secrets.TF_RESOURCE_GROUP_NAME }}
           STORAGE_ACCOUNT: ${{ secrets.TF_STORAGE_ACCOUNT_NAME }}
@@ -261,9 +291,9 @@ jobs:
       # Run a Terraform apply (only if there are changes for the environment)
       - name: Terraform Apply
         id: apply
-        if: |
-          (matrix.environment == 'development' && needs.approval.outputs.developmentHasChanges == 'true') ||
-          (matrix.environment == 'production' && needs.approval.outputs.productionHasChanges == 'true')
+        # if: |
+        #   (matrix.environment == 'development' && needs.approval.outputs.developmentHasChanges == 'true') ||
+        #   (matrix.environment == 'production' && needs.approval.outputs.productionHasChanges == 'true')
         env:
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
