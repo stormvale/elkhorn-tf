@@ -189,7 +189,7 @@ resource "azurerm_container_app" "api_weather" {
   }
 
   lifecycle {
-    ignore_changes = [secret.value]
+    ignore_changes = [secret[0].value] # gh-pat-secret
   }
 
   tags = {
