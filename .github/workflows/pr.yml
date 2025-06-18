@@ -1,4 +1,4 @@
-name: infra
+name: Environment Resources
 
 on:
   pull_request:
@@ -16,11 +16,6 @@ permissions:
   pull-requests: write # needed to write plan changes to PR
   security-events: write # Needed to upload chekov scan results
   contents: read # needed to clone repo
-
-env:
-  # used by the Terraform CLI to authenticate with the GitHub Container Registry. needed for plan & apply.
-  TF_VAR_docker_registry_username: ${{ github.actor}}
-  TF_VAR_docker_registry_password: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
   plan:
@@ -72,8 +67,8 @@ jobs:
         env:
           RESOURCE_GROUP_NAME: ${{ secrets.TF_RESOURCE_GROUP_NAME }}
           STORAGE_ACCOUNT: ${{ secrets.TF_STORAGE_ACCOUNT_NAME }}
-          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
         run: >
           cd ${{ matrix.environment }} &&
@@ -92,7 +87,6 @@ jobs:
       # Run a Terraform validate
       - name: Terraform Validate
         id: validate
-        if: (!cancelled())
         env:
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
@@ -113,7 +107,6 @@ jobs:
 
       # Upload results to GitHub Advanced Security
       - name: Upload SARIF file
-        if: (!cancelled())
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: results
@@ -124,10 +117,18 @@ jobs:
         id: plan
         env:
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          TF_VAR_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          TF_VAR_registry_username: ${{ github.actor }}
         run: |
           cd ${{ matrix.environment }}
           terraform plan -no-color -out=${{ matrix.environment }}.tfplan -detailed-exitcode
+
+      # temp
+      - name: Show Plan Outputs
+        run: |
+          echo "exitcode: ${{ needs.approval.outputs.developmentHasChanges }}"
+          echo "productionHasChanges: ${{ needs.approval.outputs.productionHasChanges }}"
+
 
       # Remove the GitHub runner IP from the storage account firewall rules to prevent unauthorized access.
       - name: Remove GitHub Runner IP from Whitelist
@@ -160,16 +161,15 @@ jobs:
           path: ${{ matrix.environment }}/${{ matrix.environment }}.tfplan
           retention-days: 3
 
-      - name: Generate plan outputs
+      - name: Display plan outputs
         id: plan_outputs
         run: |
-          environment="${{ matrix.environment }}"
-          exit_code="${{ steps.plan.outputs.detailed-exitcode }}"
-          echo "exit_code_${environment}=${exit_code}" >> "$GITHUB_OUTPUT"
+          exitcode="${{ steps.plan.outputs.exitcode }}"
+          echo "exitcode_${{ matrix.environment }}=${exitcode}" >> "$GITHUB_OUTPUT"
 
     outputs: # github does not yet fully support matix outputs :-/
-      developmentHasChanges: ${{ matrix.environment == 'development' && steps.plan.outputs.detailed-exitcode == 2 }} # 2 = succeeded with non-empty diff
-      productionHasChanges: ${{ matrix.environment == 'production' && steps.plan.outputs.detailed-exitcode == 2 }}
+      developmentHasChanges: ${{ matrix.environment == 'development' && steps.plan.outputs.exitcode == '2' }} # 2 = succeeded with non-empty diff
+      productionHasChanges: ${{ matrix.environment == 'production' && steps.plan.outputs.exitcode == '2' }}
 
   # temp job to just output the plan results
   show-plan-results:
@@ -178,18 +178,30 @@ jobs:
     steps:
       - run: echo '${{ toJSON(needs.plan.outputs) }}'
 
-  # approval:
-  #   runs-on: ubuntu-latest
-  #   name: Manual Approval
-  #   needs: [ plan ]
-  #   environment: production 
-  #   steps:
-  #     - name: Wait for Manual Approval
-  #       run: echo "Approve this step in GitHub Environments before proceeding."
+  approval:
+    runs-on: ubuntu-latest
+    name: Manual Approval
+    needs: [ plan ]
+    environment: production
+    if: success() # Only proceed if plan job succeeds
+
+    steps:
+      - name: Wait for Manual Approval
+        run: echo "Approve this step in GitHub Environments before proceeding."
+
+      - name: Show Plan Outputs
+        run: |
+          echo "developmentHasChanges: ${{ needs.plan.outputs.developmentHasChanges }}"
+          echo "productionHasChanges: ${{ needs.plan.outputs.productionHasChanges }}"
+
+    outputs: # need to pass the outputs along
+      developmentHasChanges: ${{ needs.plan.outputs.developmentHasChanges }}
+      productionHasChanges: ${{ needs.plan.outputs.productionHasChanges }}
+
 
   apply:
     runs-on: ubuntu-latest
-    needs: [ plan ]
+    needs: [ approval ]
 
     strategy:
       matrix:
@@ -223,8 +235,7 @@ jobs:
 
       # Run az commands to confirm sub access
       - name: 'Az account show'
-        run: |
-          az account show
+        run: az account show
 
       # Add a network access rule to the storage account since it is private and only allows access from specific IPs.
       - name: Whitelist GitHub Runner IP
@@ -239,9 +250,37 @@ jobs:
               --ip-address $agentIP
             sleep 30
 
+      # temp
+      - name: Show Plan Outputs
+        run: |
+          echo "developmentHasChanges: ${{ needs.approval.outputs.developmentHasChanges }}"
+          echo "productionHasChanges: ${{ needs.approval.outputs.productionHasChanges }}"
+
+      # temp
+      - name: check condition 1
+        run: echo "check condition 1"
+        if: |
+          (matrix.environment == 'development' && needs.approval.outputs.developmentHasChanges == 'true') ||
+          (matrix.environment == 'production' && needs.approval.outputs.productionHasChanges == 'true')
+
+      # temp
+      - name: check condition 2
+        run: echo "check condition 2"
+        if: |
+          (${{matrix.environment == 'development' && needs.approval.outputs.developmentHasChanges == 'true'}}) ||
+          (${{matrix.environment == 'production' && needs.approval.outputs.productionHasChanges == 'true'}})
+
+      # temp
+      - name: check condition 3
+        run: echo ${{needs.approval.outputs.developmentHasChanges == 'true' }}
+        if: matrix.environment == 'development'
+
       # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
       - name: Terraform Init
         id: init
+        # if: |
+        #   (matrix.environment == 'development' && needs.approval.outputs.developmentHasChanges == 'true') ||
+        #   (matrix.environment == 'production' && needs.approval.outputs.productionHasChanges == 'true')
         env:
           RESOURCE_GROUP_NAME: ${{ secrets.TF_RESOURCE_GROUP_NAME }}
           STORAGE_ACCOUNT: ${{ secrets.TF_STORAGE_ACCOUNT_NAME }}
@@ -255,9 +294,12 @@ jobs:
           -backend-config="storage_account_name=$STORAGE_ACCOUNT"
           -backend-config="container_name=tfstate"
 
-      # Run a Terraform apply
+      # Run a Terraform apply (only if there are changes for the environment)
       - name: Terraform Apply
         id: apply
+        # if: |
+        #   (matrix.environment == 'development' && needs.approval.outputs.developmentHasChanges == 'true') ||
+        #   (matrix.environment == 'production' && needs.approval.outputs.productionHasChanges == 'true')
         env:
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}

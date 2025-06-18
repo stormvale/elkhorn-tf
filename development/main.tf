@@ -1,9 +1,13 @@
 provider "azurerm" {
   features {}
-  use_oidc = true
+  subscription_id = var.subscription_id
+  use_oidc        = true
 }
 
-# the resource group for dev environment
+#############################################################################
+# RESOURCES FOR THE DEV ENVIRONMENT
+#############################################################################
+
 resource "azurerm_resource_group" "rg" {
   name     = "rg-${local.name_suffix}" # rg-elkhorn-dev-wus2
   location = var.location
@@ -13,19 +17,20 @@ resource "azurerm_resource_group" "rg" {
   }
 }
 
-# the networking module for dev environment
 module "networking" {
   source = "../modules/networking"
 
   resource_group_name = azurerm_resource_group.rg.name
   location            = azurerm_resource_group.rg.location
   vnet_name           = "vnet-${local.name_suffix}" # vnet-elkhorn-dev-wus2
-  vnet_address_space  = ["10.0.0.0/16"]
+  vnet_address_space  = ["10.0.0.0/16"]             # /16 => first 16 bits (ie. 2 octets) locked => 65k addresses
   environment         = "development"
 
   subnets = {
-    gateway = "10.0.1.0/24"
-    subnet2 = "10.0.2.0/24"
+    gateway = {
+      address_prefixes  = ["10.0.0.0/24"] # 10.0.0.0 - 10.0.0.255
+      service_endpoints = []
+    }
   }
 
   tags = {
@@ -34,7 +39,8 @@ module "networking" {
   }
 }
 
-# a storage account for dev environment
+# also, look into "azurerm_virtual_network_gateway"
+
 module "storage_account" {
   source = "../modules/storage_account"
 
@@ -43,18 +49,9 @@ module "storage_account" {
   name                = replace("st-${local.name_suffix}", "-", "") # stelkhorndevwus2
   environment         = "development"
 
-  tags = {
-    environment = "development"
-    managedby   = "terraform"
-  }
-}
-
-resource "azurerm_service_plan" "asp" {
-  name                = "asp-${local.name_suffix}" # asp-elkhorn-dev-wus2
-  resource_group_name = azurerm_resource_group.rg.name
-  location            = azurerm_resource_group.rg.location
-  os_type             = "Linux"
-  sku_name            = "F1"
+  subnet_ids = [
+    azurerm_subnet.cae_subnet.id
+  ]
 
   tags = {
     environment = "development"
@@ -62,34 +59,137 @@ resource "azurerm_service_plan" "asp" {
   }
 }
 
-locals {
-  api_weather_app_name = "api-weather"
+resource "azurerm_log_analytics_workspace" "log_workspace" {
+  name                = "log-${local.name_suffix}"
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+  sku                 = "PerGB2018"
+  retention_in_days   = 30
+  daily_quota_gb      = 1
+
+  tags = {
+    environment = "development"
+    managedby   = "terraform"
+  }
 }
 
-resource "azurerm_linux_web_app" "api_weather" {
-  name                = "${local.api_weather_app_name}-${local.name_suffix}" # api-weather-elkhorn-dev-wus2
-  resource_group_name = azurerm_resource_group.rg.name
-  location            = azurerm_resource_group.rg.location
-  service_plan_id     = azurerm_service_plan.asp.id
+###########################################################################
+# resources for weather-api app
 
-  site_config {
-    always_on           = false # must be false for free tier
-    minimum_tls_version = "1.2"
+data "azurerm_key_vault" "kv_shared" {
+  name                = "kv-elkhorn-${local.location_short}"
+  resource_group_name = "rg-elkhorn-${local.location_short}"
+}
 
-    application_stack {
-      docker_registry_url      = "https://ghcr.io"
-      docker_image_name        = "ghcr.io/stormvale/weather-api:latest"
-      docker_registry_username = var.docker_registry_username
-      docker_registry_password = var.docker_registry_password
+data "azurerm_key_vault_secret" "github_pat" {
+  name         = "github-pat"
+  key_vault_id = data.azurerm_key_vault.kv_shared.id
+}
+
+resource "azurerm_container_app_environment" "cae" {
+  name                       = "cae-${local.name_suffix}"
+  location                   = var.location
+  resource_group_name        = azurerm_resource_group.rg.name
+  log_analytics_workspace_id = azurerm_log_analytics_workspace.log_workspace.id
+  zone_redundancy_enabled    = false
+
+  # workload profiles:
+  #  - require min /27 subnet for vnet integration
+  #  - subnet must be delegated to Microsoft.App/environments
+  infrastructure_subnet_id = azurerm_subnet.cae_subnet.id
+
+  # Azure automatically creates this separate resource group to hold the infrastructure components.
+  # It is managed by the Azure Container Apps platform. Container Apps are still deployed into the
+  # main resource group containing the Container Apps Environment.
+  infrastructure_resource_group_name = "${azurerm_resource_group.rg.name}-cae"
+
+  workload_profile {
+    name                  = "Consumption"
+    workload_profile_type = "Consumption"
+    minimum_count         = 0
+    maximum_count         = 2
+  }
+
+  tags = {
+    environment = "development"
+    managedby   = "terraform"
+  }
+}
+
+resource "azurerm_subnet" "cae_subnet" {
+  name                 = "snet-cae-${local.name_suffix}"
+  resource_group_name  = azurerm_resource_group.rg.name
+  virtual_network_name = module.networking.virtual_network_name
+  address_prefixes     = ["10.0.2.0/23"] # 10.0.2.0 - 10.0.3.255 (cae subnet requires at least /23)
+  service_endpoints    = ["Microsoft.Storage"]
+
+  delegation {
+    name = "Microsoft.App.environments"
+    service_delegation {
+      name = "Microsoft.App/environments"
+      actions = [
+        "Microsoft.Network/virtualNetworks/subnets/join/action",
+      ]
+    }
+  }
+}
+
+resource "azurerm_container_app" "api_weather" {
+  name                         = "api-weather-${local.name_suffix}"
+  container_app_environment_id = azurerm_container_app_environment.cae.id
+  resource_group_name          = azurerm_resource_group.rg.name
+  revision_mode                = "Single"
+
+  template {
+    container {
+      name   = "api-weather" # lower case alphanumeric characters or '-'. max 63 chars
+      image  = "ghcr.io/stormvale/api.weather:latest"
+      cpu    = 0.25
+      memory = "0.5Gi"
+
+      env { # environment variables can refer to secrets
+        name        = "ConnectionStrings__postgres"
+        secret_name = "conn-string-db"
+      }
     }
   }
 
   identity {
-    type = "SystemAssigned"
+    type         = "SystemAssigned, UserAssigned"
+    identity_ids = [azurerm_user_assigned_identity.api_weather_id.id]
   }
 
-  app_settings = {
-    "WEBSITE_RUN_FROM_PACKAGE" = "1"
+  ingress {
+    external_enabled = true
+    target_port      = 8080
+    transport        = "http"
+
+    traffic_weight {
+      latest_revision = true
+      percentage      = 100
+    }
+  }
+
+  secret {
+    name                = "gh-pat-secret"
+    identity            = azurerm_user_assigned_identity.api_weather_id.id
+    key_vault_secret_id = data.azurerm_key_vault_secret.github_pat.versionless_id
+    # per docs: When using key_vault_secret_id, ignore_changes should be used to ignore any changes to value. (see lifecycle)
+  }
+
+  secret {
+    name  = "conn-string-db"
+    value = "<db connection string goes here>"
+  }
+
+  registry {
+    server               = "ghcr.io"
+    username             = var.registry_username
+    password_secret_name = "gh-pat-secret"
+  }
+
+  lifecycle {
+    ignore_changes = [secret]
   }
 
   tags = {
@@ -97,3 +197,39 @@ resource "azurerm_linux_web_app" "api_weather" {
     managedby   = "terraform"
   }
 }
+
+# a user assigned managed identity for this container app.
+resource "azurerm_user_assigned_identity" "api_weather_id" {
+  name                = "id-api-weather-${local.name_suffix}"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.rg.name
+
+  tags = {
+    environment = "development"
+    managedby   = "terraform"
+  }
+}
+
+# allow the managed identity to read secret values from the keyvault
+resource "azurerm_role_assignment" "role_weather_api_kv" {
+  scope                = data.azurerm_key_vault.kv_shared.id
+  principal_id         = azurerm_user_assigned_identity.api_weather_id.principal_id
+  role_definition_name = "Key Vault Secrets User"
+}
+
+# this container app is allowed to contribute to log analytics.
+resource "azurerm_role_assignment" "role_weather_api_log" {
+  scope                = azurerm_log_analytics_workspace.log_workspace.id
+  principal_id         = azurerm_user_assigned_identity.api_weather_id.principal_id
+  role_definition_name = "Log Analytics Contributor"
+}
+
+# Note: even when we create a SystemAssigned managed identity for the container app and then also assign
+# the 'Key Vault Secrets User' role to this identity, it looks like we are still getting a 403 Forbidden
+# error when trying to access the secret :-/ changing to use User Assigned managed identity instead.
+# UPDATE: try this again - i think we were assigning the permission to the wrong resource :-/
+# resource "azurerm_role_assignment" "role_weather_api_kv" {
+#   scope                = azurerm_container_app.api_weather.id
+#   principal_id         = azurerm_container_app.api_weather.identity[0].principal_id # SystemAssigned identity
+#   role_definition_name = "Key Vault Secrets User"
+# }
