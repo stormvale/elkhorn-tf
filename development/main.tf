@@ -135,7 +135,7 @@ resource "azurerm_subnet" "cae_subnet" {
 }
 
 resource "azurerm_container_app" "api_weather" {
-  name                         = "api-weather"
+  name                         = "api-weather-${local.name_suffix}"
   container_app_environment_id = azurerm_container_app_environment.cae.id
   resource_group_name          = azurerm_resource_group.rg.name
   revision_mode                = "Single"
@@ -154,10 +154,10 @@ resource "azurerm_container_app" "api_weather" {
     }
   }
 
-  # identity {
-  #   type         = "UserAssigned" # "SystemAssigned"
-  #   identity_ids = [azurerm_user_assigned_identity.api_weather_id.id]
-  # }
+  identity {
+    type         = "SystemAssigned, UserAssigned"
+    identity_ids = [azurerm_user_assigned_identity.api_weather_id.id]
+  }
 
   ingress {
     external_enabled = true
@@ -200,7 +200,7 @@ resource "azurerm_container_app" "api_weather" {
 
 # a user assigned managed identity for this container app.
 resource "azurerm_user_assigned_identity" "api_weather_id" {
-  name                = "id-${azurerm_container_app.api_weather.name}"
+  name                = "id-api-weather-${local.name_suffix}"
   location            = var.location
   resource_group_name = azurerm_resource_group.rg.name
 
