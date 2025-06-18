@@ -171,9 +171,9 @@ resource "azurerm_container_app" "api_weather" {
   }
 
   secret {
-    name                = "gh-pat-secret"                                  # name of the container app secret
-    identity            = azurerm_user_assigned_identity.api_weather_id.id # identity to use for accessing keyvault reference (must have role to access kv secrets)
-    key_vault_secret_id = data.azurerm_key_vault_secret.github_pat.id      # the value of this secret is stored in a keyvault
+    name                = "gh-pat-secret"
+    identity            = azurerm_user_assigned_identity.api_weather_id.id
+    key_vault_secret_id = data.azurerm_key_vault_secret.github_pat.versionless_id
     # per docs: When using key_vault_secret_id, ignore_changes should be used to ignore any changes to value. (see lifecycle)
   }
 
@@ -210,8 +210,9 @@ resource "azurerm_user_assigned_identity" "api_weather_id" {
   }
 }
 
+# allow the managed identity to read secret values from the keyvault
 resource "azurerm_role_assignment" "role_weather_api_kv" {
-  scope                = azurerm_container_app.api_weather.id
+  scope                = data.azurerm_key_vault.kv_shared.id
   principal_id         = azurerm_user_assigned_identity.api_weather_id.principal_id
   role_definition_name = "Key Vault Secrets User"
 }
@@ -219,13 +220,14 @@ resource "azurerm_role_assignment" "role_weather_api_kv" {
 # this container app is allowed to contribute to log analytics.
 resource "azurerm_role_assignment" "role_weather_api_log" {
   scope                = azurerm_log_analytics_workspace.log_workspace.id
-  principal_id         = azurerm_container_app.api_weather.identity[0].principal_id
+  principal_id         = azurerm_user_assigned_identity.api_weather_id.principal_id
   role_definition_name = "Log Analytics Contributor"
 }
 
 # Note: even when we create a SystemAssigned managed identity for the container app and then also assign
 # the 'Key Vault Secrets User' role to this identity, it looks like we are still getting a 403 Forbidden
 # error when trying to access the secret :-/ changing to use User Assigned managed identity instead.
+# UPDATE: try this again - i think we were assigning the permission to the wrong resource :-/
 # resource "azurerm_role_assignment" "role_weather_api_kv" {
 #   scope                = azurerm_container_app.api_weather.id
 #   principal_id         = azurerm_container_app.api_weather.identity[0].principal_id # SystemAssigned identity

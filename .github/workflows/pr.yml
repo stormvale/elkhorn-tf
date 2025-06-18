@@ -123,6 +123,13 @@ jobs:
           cd ${{ matrix.environment }}
           terraform plan -no-color -out=${{ matrix.environment }}.tfplan -detailed-exitcode
 
+      # temp
+      - name: Show Plan Outputs
+        run: |
+          echo "exitcode: ${{ needs.approval.outputs.developmentHasChanges }}"
+          echo "productionHasChanges: ${{ needs.approval.outputs.productionHasChanges }}"
+
+
       # Remove the GitHub runner IP from the storage account firewall rules to prevent unauthorized access.
       - name: Remove GitHub Runner IP from Whitelist
         if: always()
@@ -161,8 +168,8 @@ jobs:
           echo "exitcode_${{ matrix.environment }}=${exitcode}" >> "$GITHUB_OUTPUT"
 
     outputs: # github does not yet fully support matix outputs :-/
-      developmentHasChanges: ${{ matrix.environment == 'development' && steps.plan.outputs.exitcode == 2 }} # 2 = succeeded with non-empty diff
-      productionHasChanges: ${{ matrix.environment == 'production' && steps.plan.outputs.exitcode == 2 }}
+      developmentHasChanges: ${{ matrix.environment == 'development' && steps.plan.outputs.exitcode == '2' }} # 2 = succeeded with non-empty diff
+      productionHasChanges: ${{ matrix.environment == 'production' && steps.plan.outputs.exitcode == '2' }}
 
   # temp job to just output the plan results
   show-plan-results:
@@ -170,7 +177,6 @@ jobs:
     needs: [ plan ]
     steps:
       - run: echo '${{ toJSON(needs.plan.outputs) }}'
-
 
   approval:
     runs-on: ubuntu-latest
