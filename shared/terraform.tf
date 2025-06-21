@@ -14,7 +14,7 @@ terraform {
   }
 
   backend "azurerm" {
-    key              = "global.tfstate"
+    key              = "shared.tfstate"
     use_azuread_auth = true
     use_oidc         = true
   }
@@ -32,4 +32,9 @@ terraform {
   # 4. The backend has changed, so we need to re-initialize, but keep the state
   #       terraform init -migrate-state
   # 5. terraform plan should return 'No changes. Your infrastructure matches the configuration.'
+
+
+  # To import an existing resource into state
+  # =========================================
+  #       terraform import <fully qualified name of the resource> /subscriptions/<subscription_id>/resourceGroups/<resource_group_name>/providers/Microsoft.App/...<etc.>
 }

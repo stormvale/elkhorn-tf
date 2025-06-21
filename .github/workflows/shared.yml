@@ -61,7 +61,7 @@ jobs:
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
         run: >
-          cd global &&
+          cd shared &&
           terraform init -force-copy
           -backend-config="resource_group_name=$RESOURCE_GROUP_NAME"
           -backend-config="storage_account_name=$STORAGE_ACCOUNT"
@@ -71,18 +71,18 @@ jobs:
       - name: Terraform format
         id: fmt
         run: |
-          cd global
+          cd shared
           terraform fmt -check -recursive
   
       # Run a Terraform validate
       - name: Terraform validate
         id: validate
-        env:
-          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+        # env:
+        #   ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        #   ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        #   ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
         run: |
-          cd global
+          cd shared
           terraform validate -no-color
 
       # Perform a security scan of the terraform code using checkov
@@ -90,8 +90,8 @@ jobs:
         id: checkov
         uses: bridgecrewio/checkov-action@master
         with:
-          directory: global/
-          output_file_path: results/global.sarif
+          directory: shared/
+          output_file_path: results/shared.sarif
           framework: terraform
           soft_fail: true
 
@@ -113,8 +113,8 @@ jobs:
           TF_VAR_resource_group_name: ${{ secrets.TF_RESOURCE_GROUP_NAME }}
           TF_VAR_github_pat: ${{ secrets.GH_PAT }}
         run: > # don't mess with the formatting of this run command
-          cd global &&
-          terraform plan -no-color -out=global.tfplan -detailed-exitcode
+          cd shared &&
+          terraform plan -no-color -out=shared.tfplan -detailed-exitcode
 
       # Log the plan output. 0 = no changes, 1 = error, 2 = changes
       - name: Show plan output
@@ -140,16 +140,16 @@ jobs:
         if: github.event_name == 'pull_request'
         with:
           token: ${{ github.token }}
-          working-directory: global
-          header: 'Terraform Plan: global'
-          planfile: global.tfplan
+          working-directory: shared
+          header: 'Terraform Plan: shared'
+          planfile: shared.tfplan
 
       # Upload the Terraform plan as an artifact for later use in the apply job
       - name: Upload Terraform plan
         uses: actions/upload-artifact@v4
         with:
-          name: global.tfplan
-          path: global/global.tfplan
+          name: shared.tfplan
+          path: shared/shared.tfplan
           retention-days: 3
 
     outputs:
@@ -170,8 +170,8 @@ jobs:
       - name: Download Terraform Plan Artifact
         uses: actions/download-artifact@v4
         with:
-          name: global.tfplan
-          path: global # keep the plan in the environment directory
+          name: shared.tfplan
+          path: shared # keep the plan in the environment directory
 
       # Install the Terraform CLI and configure the Terraform CLI configuration file with a Terraform Cloud user API token
       - name: Setup Terraform
@@ -215,7 +215,7 @@ jobs:
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
         run: >
-          cd global &&
+          cd shared &&
           terraform init -force-copy
           -backend-config="resource_group_name=$RESOURCE_GROUP_NAME"
           -backend-config="storage_account_name=$STORAGE_ACCOUNT"
@@ -228,8 +228,8 @@ jobs:
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }} # required by azurerm provider
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
         run: |
-          cd global
-          terraform apply -no-color global.tfplan
+          cd shared
+          terraform apply -no-color shared.tfplan
 
       # Remove the GitHub runner IP from the storage account firewall rules to prevent unauthorized access.
       - name: Remove GitHub Runner IP from Whitelist
