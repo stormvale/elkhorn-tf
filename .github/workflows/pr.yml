@@ -84,10 +84,6 @@ jobs:
       # Run a Terraform validate
       - name: Terraform Validate
         id: validate
-        # env:
-        #   ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-        #   ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-        #   ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
         run: |
           cd environments/${{ matrix.environment }}
           terraform validate -no-color
@@ -113,12 +109,11 @@ jobs:
       - name: Terraform plan
         id: plan
         env:
-          # ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           TF_VAR_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           TF_VAR_registry_username: ${{ github.actor }}
         run: |
           cd environments/${{ matrix.environment }}
-          terraform plan -no-color -var-file="development.tfvars" -out=${{ matrix.environment }}.tfplan -detailed-exitcode
+          terraform plan -no-color -var-file="${{ matrix.environment }}.tfvars" -out=${{ matrix.environment }}.tfplan -detailed-exitcode
 
       # temp
       - name: Show Plan Outputs
@@ -156,7 +151,7 @@ jobs:
           path: environments/${{ matrix.environment }}/${{ matrix.environment }}.tfplan
           retention-days: 3
 
-      - name: Display plan outputs
+      - name: Capture plan outputs
         id: plan_outputs
         run: |
           exitcode="${{ steps.plan.outputs.exitcode }}"
