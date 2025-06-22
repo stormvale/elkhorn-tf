@@ -139,7 +139,7 @@ jobs:
         if: github.event_name == 'pull_request'
         with:
           token: ${{ github.token }}
-          working-directory: ${{ matrix.environment }}
+          working-directory: environments/${{ matrix.environment }}
           header: 'Terraform Plan: ${{ matrix.environment }}'
           planfile: ${{ matrix.environment }}.tfplan
 
