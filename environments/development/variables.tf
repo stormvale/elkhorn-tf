@@ -5,15 +5,40 @@ variable "subscription_id" {
 }
 
 variable "registry_username" {
-  description = "(Required) GitHub username to access the GitHub Container Registry"
+  description = "(Required) GitHub username to access the GitHub Container Registry."
   type        = string
 }
 
 variable "location" {
-  description = "Azure region where the resources should exist"
+  description = "(Required) The Azure region where the resource should exist."
   type        = string
-  default     = "westus2"
+
+  validation {
+    condition     = contains(["westus2", "canadacentral"], var.location)
+    error_message = "Allowed values for location are 'westus2', 'canadacentral'."
+  }
 }
+
+# variable "container_apps" {
+#   description = "Azure Container App resources that should exist"
+#   type = map(object({
+#     image  = string
+#     cpu    = number
+#     memory = string
+
+#     env_vars = list(object({
+#       name        = string
+#       value       = optional(string)
+#       secret_name = optional(string)
+#     }))
+
+#     secrets = optional(list(object({
+#       name  = string
+#       value = string
+#     })), [])
+
+#   }))
+# }
 
 ####################################################################################
 

@@ -5,8 +5,7 @@ on:
     branches:
       - main
     paths:
-      - 'development/**'
-      - 'production/**'
+      - 'environments/**'
       - 'modules/**'
   workflow_dispatch:
 
@@ -87,10 +86,10 @@ jobs:
       # Run a Terraform validate
       - name: Terraform Validate
         id: validate
-        env:
-          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+        # env:
+        #   ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        #   ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        #   ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
         run: |
           cd ${{ matrix.environment }}
           terraform validate -no-color
@@ -116,19 +115,17 @@ jobs:
       - name: Terraform plan
         id: plan
         env:
-          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          # ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           TF_VAR_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           TF_VAR_registry_username: ${{ github.actor }}
         run: |
           cd ${{ matrix.environment }}
-          terraform plan -no-color -out=${{ matrix.environment }}.tfplan -detailed-exitcode
+          terraform plan -no-color -var-file="development.tfvars" -out=${{ matrix.environment }}.tfplan -detailed-exitcode
 
       # temp
       - name: Show Plan Outputs
         run: |
-          echo "exitcode: ${{ needs.approval.outputs.developmentHasChanges }}"
-          echo "productionHasChanges: ${{ needs.approval.outputs.productionHasChanges }}"
-
+          echo "exitcode: ${{ steps.plan.outputs.exitcode }}"
 
       # Remove the GitHub runner IP from the storage account firewall rules to prevent unauthorized access.
       - name: Remove GitHub Runner IP from Whitelist

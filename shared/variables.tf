@@ -3,11 +3,6 @@ variable "subscription_id" {
   type        = string
 }
 
-variable "client_id" {
-  description = "(Required) The client ID of the GitHub Actions application."
-  type        = string
-}
-
 variable "resource_group_name" {
   description = "(Required) The name of the resource group where the resource should exist."
   type        = string
