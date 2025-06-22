@@ -32,8 +32,6 @@ jobs:
       # Install the latest version of Terraform CLI and configure the Terraform CLI configuration file with a Terraform Cloud user API token
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: '1.12.2'
 
       # Log into Azure with OIDC integration. (requires federated credentials on the App Registration in Azure.)
       - name: 'Azure login'
