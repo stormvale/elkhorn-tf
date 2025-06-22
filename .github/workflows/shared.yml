@@ -1,10 +1,10 @@
 name: Shared Resources
 
 on:
+  pull_request:
+    branches: [main]
+    paths-ignore: ['environments/**', 'modules/**']
   workflow_dispatch:
-  # pull_request:
-  #   branches: [main]
-  #   paths-ignore: ['modules/**', 'development/**', 'production/**']
 
 permissions:
   id-token: write # needed to POST to Github Actions Token Service?
