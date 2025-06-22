@@ -68,7 +68,7 @@ jobs:
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
         run: >
-          cd ${{ matrix.environment }} &&
+          cd environments/${{ matrix.environment }} &&
           terraform init -force-copy
           -backend-config="resource_group_name=$RESOURCE_GROUP_NAME"
           -backend-config="storage_account_name=$STORAGE_ACCOUNT"
@@ -78,7 +78,7 @@ jobs:
       - name: Terraform format
         id: fmt
         run: |
-          cd ${{ matrix.environment }}
+          cd environments/${{ matrix.environment }}
           terraform fmt -check -recursive
   
       # Run a Terraform validate
@@ -89,7 +89,7 @@ jobs:
         #   ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
         #   ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
         run: |
-          cd ${{ matrix.environment }}
+          cd environments/${{ matrix.environment }}
           terraform validate -no-color
 
       # Perform a security scan of the terraform code using checkov
@@ -97,7 +97,7 @@ jobs:
         id: checkov
         uses: bridgecrewio/checkov-action@master
         with:
-          directory: ${{ matrix.environment }}/
+          directory: environments/${{ matrix.environment }}/
           output_file_path: results/${{ matrix.environment }}.sarif
           framework: terraform
           soft_fail: true
@@ -117,7 +117,7 @@ jobs:
           TF_VAR_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           TF_VAR_registry_username: ${{ github.actor }}
         run: |
-          cd ${{ matrix.environment }}
+          cd environments/${{ matrix.environment }}
           terraform plan -no-color -var-file="development.tfvars" -out=${{ matrix.environment }}.tfplan -detailed-exitcode
 
       # temp
@@ -153,7 +153,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.environment }}.tfplan
-          path: ${{ matrix.environment }}/${{ matrix.environment }}.tfplan
+          path: environments/${{ matrix.environment }}/${{ matrix.environment }}.tfplan
           retention-days: 3
 
       - name: Display plan outputs

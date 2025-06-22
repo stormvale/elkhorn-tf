@@ -3,7 +3,7 @@ name: Shared Resources
 on:
   pull_request:
     branches: [main]
-    paths-ignore: ['environments/**', 'modules/**']
+    paths: ['shared/**']
   workflow_dispatch:
 
 permissions:
@@ -77,10 +77,6 @@ jobs:
       # Run a Terraform validate
       - name: Terraform validate
         id: validate
-        # env:
-        #   ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-        #   ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-        #   ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
         run: |
           cd shared
           terraform validate -no-color
@@ -106,13 +102,11 @@ jobs:
       - name: Terraform plan
         id: plan
         env:
-          # ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          # ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           TF_VAR_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           TF_VAR_client_id: ${{ secrets.AZURE_CLIENT_ID }}
           TF_VAR_resource_group_name: ${{ secrets.TF_RESOURCE_GROUP_NAME }}
           TF_VAR_github_pat: ${{ secrets.GH_PAT }}
-        run: > # don't mess with the formatting of this run command
+        run: |
           cd shared &&
           terraform plan -no-color -out=shared.tfplan -detailed-exitcode
 
@@ -189,8 +183,7 @@ jobs:
 
       # Run az commands to confirm sub access
       - name: 'Az account show'
-        run: |
-          az account show
+        run: az account show
 
       # Add a network access rule to the storage account since it is private and only allows access from specific IPs.
       - name: Whitelist GitHub Runner IP
