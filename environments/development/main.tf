@@ -120,7 +120,15 @@ module "web_apps" {
   analytics_workspace_id = azurerm_log_analytics_workspace.log_workspace.id
   tags                   = local.tags
 
+  # the key names are important, as they are used to generate the db connection string name where required.
   web_apps = {
+    gateway = {
+      registry_url               = "https://ghcr.io"
+      registry_username          = var.registry_username
+      registry_password          = var.registry_password
+      image_name                 = "stormvale/gateway.api:latest",
+      subnet_id                  = module.networking.subnet_ids["web_apps"]
+    }
     restaurants = {
       registry_url               = "https://ghcr.io"
       registry_username          = var.registry_username

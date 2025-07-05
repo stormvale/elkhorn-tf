@@ -23,10 +23,14 @@ resource "azurerm_linux_web_app" "web_app" {
   # not supported on free SKU
   # virtual_network_subnet_id = each.value.subnet_id
 
-  connection_string {
-    name  = "restaurantsDb"
-    type  = "Custom"
-    value = each.value.cosmosdb_connection_string
+  # not all services have a connection string
+  dynamic "connection_string" {
+    for_each = each.value.cosmosdb_connection_string != null ? [each.value.cosmosdb_connection_string] : []
+    content {
+      name = "${each.key}Db"
+      type  = "Custom"
+      value = each.value.cosmosdb_connection_string
+    }
   }
 
   site_config {
