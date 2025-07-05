@@ -32,4 +32,7 @@ terraform {
   # 4. The backend has changed, so we need to re-initialize, but keep the state
   #       terraform init -migrate-state
   # 5. terraform plan should return 'No changes. Your infrastructure matches the configuration.'
+
+  # terraform import azurerm_container_app.api_weather "<id>"
+  # terraform import module.cosmosdb.azurerm_cosmosdb_account.account "<id>"
 }

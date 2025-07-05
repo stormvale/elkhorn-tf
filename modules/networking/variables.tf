@@ -35,11 +35,15 @@ variable "vnet_address_space" {
 }
 
 variable "subnets" {
+  description = "(Optional) Subnets to create in the virtual network. The key is the subnet name."
   type = map(object({
     address_prefixes  = list(string)
     service_endpoints = list(string)
+    delegation = optional(object({
+      service_delegation_name = string
+      actions                 = list(string)
+    }))
   }))
-  description = "(Optional) Subnets to create in the virtual network. The key is the subnet name"
 }
 
 variable "tags" {

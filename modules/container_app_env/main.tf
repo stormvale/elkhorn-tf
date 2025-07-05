@@ -5,7 +5,7 @@ resource "azurerm_container_app_environment" "cae" {
   resource_group_name        = var.resource_group_name
   log_analytics_workspace_id = var.log_analytics_workspace_id
   zone_redundancy_enabled    = false
-  tags = var.tags
+  tags                       = var.tags
 
   # workload profiles:
   #  - require min /27 subnet for vnet integration

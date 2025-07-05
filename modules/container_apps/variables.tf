@@ -31,7 +31,7 @@ variable "environment" {
 
 variable "container_apps" {
   description = "(Optional) Azure Container App resources that should exist."
-  
+
   type = map(object({
     image           = string
     cpu             = number
@@ -40,17 +40,17 @@ variable "container_apps" {
 
     # environment variables either have a vlue, or reference a named secret from the 'secrets' block
     environment_variables = list(object({
-        name        = string
-        value       = optional(string)
-        secret_name = optional(string)
+      name        = string
+      value       = optional(string)
+      secret_name = optional(string)
     }))
 
     # secrets either have a value, or a key vault secret id and a managed identity used to access it.
     secrets = optional(list(object({
-      name                 = string
-      value                = optional(string)
-      identity             = optional(string)
-      key_vault_secret_id  = optional(string)
+      name                = string
+      value               = optional(string)
+      identity            = optional(string)
+      key_vault_secret_id = optional(string)
     })), [])
 
 
@@ -84,12 +84,12 @@ variable "container_apps" {
 }
 
 variable "registry_username" {
-    description = "(Required) The username to use to access the configured container registry."
-    type = string
+  description = "(Required) The username to use to access the configured container registry."
+  type        = string
 }
 
 variable "registry_server" {
-    description = "(Required) The container registry server."
-    type = string
-    default = "ghcr.io"
+  description = "(Required) The container registry server."
+  type        = string
+  default     = "ghcr.io"
 }
