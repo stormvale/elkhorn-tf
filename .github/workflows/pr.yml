@@ -32,8 +32,6 @@ jobs:
       # Install the latest version of Terraform CLI and configure the Terraform CLI configuration file with a Terraform Cloud user API token
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: '1.12.2'
 
       # Log into Azure with OIDC integration. (requires federated credentials on the App Registration in Azure.)
       - name: 'Azure login'
@@ -70,7 +68,7 @@ jobs:
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
         run: >
-          cd ${{ matrix.environment }} &&
+          cd environments/${{ matrix.environment }} &&
           terraform init -force-copy
           -backend-config="resource_group_name=$RESOURCE_GROUP_NAME"
           -backend-config="storage_account_name=$STORAGE_ACCOUNT"
@@ -80,18 +78,14 @@ jobs:
       - name: Terraform format
         id: fmt
         run: |
-          cd ${{ matrix.environment }}
+          cd environments/${{ matrix.environment }}
           terraform fmt -check -recursive
   
       # Run a Terraform validate
       - name: Terraform Validate
         id: validate
-        # env:
-        #   ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-        #   ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-        #   ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
         run: |
-          cd ${{ matrix.environment }}
+          cd environments/${{ matrix.environment }}
           terraform validate -no-color
 
       # Perform a security scan of the terraform code using checkov
@@ -99,7 +93,7 @@ jobs:
         id: checkov
         uses: bridgecrewio/checkov-action@master
         with:
-          directory: ${{ matrix.environment }}/
+          directory: environments/${{ matrix.environment }}/
           output_file_path: results/${{ matrix.environment }}.sarif
           framework: terraform
           soft_fail: true
@@ -115,12 +109,11 @@ jobs:
       - name: Terraform plan
         id: plan
         env:
-          # ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           TF_VAR_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           TF_VAR_registry_username: ${{ github.actor }}
         run: |
-          cd ${{ matrix.environment }}
-          terraform plan -no-color -var-file="development.tfvars" -out=${{ matrix.environment }}.tfplan -detailed-exitcode
+          cd environments/${{ matrix.environment }}
+          terraform plan -no-color -var-file="${{ matrix.environment }}.tfvars" -out=${{ matrix.environment }}.tfplan -detailed-exitcode
 
       # temp
       - name: Show Plan Outputs
@@ -146,7 +139,7 @@ jobs:
         if: github.event_name == 'pull_request'
         with:
           token: ${{ github.token }}
-          working-directory: ${{ matrix.environment }}
+          working-directory: environments/${{ matrix.environment }}
           header: 'Terraform Plan: ${{ matrix.environment }}'
           planfile: ${{ matrix.environment }}.tfplan
 
@@ -155,10 +148,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.environment }}.tfplan
-          path: ${{ matrix.environment }}/${{ matrix.environment }}.tfplan
+          path: environments/${{ matrix.environment }}/${{ matrix.environment }}.tfplan
           retention-days: 3
 
-      - name: Display plan outputs
+      - name: Capture plan outputs
         id: plan_outputs
         run: |
           exitcode="${{ steps.plan.outputs.exitcode }}"
@@ -177,7 +170,6 @@ jobs:
 
   approval:
     runs-on: ubuntu-latest
-    name: Manual Approval
     needs: [ plan ]
     environment: production
     if: success() # Only proceed if plan job succeeds
@@ -194,7 +186,6 @@ jobs:
     outputs: # need to pass the outputs along
       developmentHasChanges: ${{ needs.plan.outputs.developmentHasChanges }}
       productionHasChanges: ${{ needs.plan.outputs.productionHasChanges }}
-
 
   apply:
     runs-on: ubuntu-latest
@@ -216,7 +207,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: ${{ matrix.environment }}.tfplan
-          path: ${{ matrix.environment }} # keep the plan in the environment directory
+          path: environments/${{ matrix.environment }} # keep the plan in the environment directory
 
       # Install the latest version of Terraform CLI and configure the Terraform CLI configuration file with a Terraform Cloud user API token
       - name: Setup Terraform
@@ -254,13 +245,6 @@ jobs:
           echo "productionHasChanges: ${{ needs.approval.outputs.productionHasChanges }}"
 
       # temp
-      - name: check condition 1
-        run: echo "check condition 1"
-        if: |
-          (matrix.environment == 'development' && needs.approval.outputs.developmentHasChanges == 'true') ||
-          (matrix.environment == 'production' && needs.approval.outputs.productionHasChanges == 'true')
-
-      # temp
       - name: check condition 2
         run: echo "check condition 2"
         if: |
@@ -275,9 +259,6 @@ jobs:
       # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
       - name: Terraform Init
         id: init
-        # if: |
-        #   (matrix.environment == 'development' && needs.approval.outputs.developmentHasChanges == 'true') ||
-        #   (matrix.environment == 'production' && needs.approval.outputs.productionHasChanges == 'true')
         env:
           RESOURCE_GROUP_NAME: ${{ secrets.TF_RESOURCE_GROUP_NAME }}
           STORAGE_ACCOUNT: ${{ secrets.TF_STORAGE_ACCOUNT_NAME }}
@@ -285,7 +266,7 @@ jobs:
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
         run: >
-          cd ${{ matrix.environment }} &&
+          cd environments/${{ matrix.environment }} &&
           terraform init -force-copy
           -backend-config="resource_group_name=$RESOURCE_GROUP_NAME"
           -backend-config="storage_account_name=$STORAGE_ACCOUNT"
@@ -294,15 +275,12 @@ jobs:
       # Run a Terraform apply (only if there are changes for the environment)
       - name: Terraform Apply
         id: apply
-        # if: |
-        #   (matrix.environment == 'development' && needs.approval.outputs.developmentHasChanges == 'true') ||
-        #   (matrix.environment == 'production' && needs.approval.outputs.productionHasChanges == 'true')
         env:
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
         run: |
-          cd ${{ matrix.environment }}
+          cd environments/${{ matrix.environment }}
           terraform apply -no-color ${{ matrix.environment }}.tfplan
 
       # Remove the GitHub runner IP from the storage account firewall rules to prevent unauthorized access.
