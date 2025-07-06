@@ -10,6 +10,16 @@ resource "azurerm_service_plan" "asp" {
   # check networking (not available on free SKUs)
 }
 
+resource "azurerm_api_management" "apim" {
+  name                = "apim-${local.name_suffix}"
+  resource_group_name = var.resource_group_name
+  location            = var.location
+  publisher_name      = "Stormvale"
+  publisher_email     = "kevin@email.com"
+
+  sku_name = "Developer_1"
+}
+
 resource "azurerm_linux_web_app" "web_app" {
   for_each = var.web_apps
 
