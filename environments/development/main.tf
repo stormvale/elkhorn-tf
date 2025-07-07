@@ -91,22 +91,17 @@ module "cosmosdb" {
   environment         = "development"
   tags                = local.tags
 
-  databases = {
-    restaurantsDb = {
-      container_name      = "restaurants"
-      partition_key_paths = ["/id"]
-    }
-    schoolsDb = {
-      container_name      = "schools"
-      partition_key_paths = ["/id"]
-    }
-    lunchesDb = {
-      container_name      = "lunches"
-      partition_key_paths = ["/id"]
-    }
-    ordersDb = {
-      container_name      = "orders"
-      partition_key_paths = ["/id"]
+  # To take advantage of the free tier during development, we will use a single database
+  # with containers for each service, instead of the preferred "database per service" approach.
+  cosmos_databases = {
+    elkhornDb = {
+      throughput = 1000 # Free tier max = 1000 RU/s per account
+      containers = {
+        restaurants = { partition_key_paths = ["/id"] }
+        schools     = { partition_key_paths = ["/id"] }
+        lunches     = { partition_key_paths = ["/id"] }
+        orders      = { partition_key_paths = ["/id"] }
+      }
     }
   }
 }
@@ -114,21 +109,14 @@ module "cosmosdb" {
 module "web_apps" {
   source = "../../modules/web_apps"
 
-  resource_group_name    = azurerm_resource_group.rg.name
-  location               = azurerm_resource_group.rg.location
-  environment            = "development"
-  analytics_workspace_id = azurerm_log_analytics_workspace.log_workspace.id
-  tags                   = local.tags
+  resource_group_name        = azurerm_resource_group.rg.name
+  location                   = azurerm_resource_group.rg.location
+  environment                = "development"
+  log_analytics_workspace_id = azurerm_log_analytics_workspace.log_workspace.id
+  tags                       = local.tags
 
   # the key names are important, as they are used to generate the db connection string name where required.
   web_apps = {
-    gateway = {
-      registry_url               = "https://ghcr.io"
-      registry_username          = var.registry_username
-      registry_password          = var.registry_password
-      image_name                 = "stormvale/gateway.api:latest",
-      subnet_id                  = module.networking.subnet_ids["web_apps"]
-    }
     restaurants = {
       registry_url               = "https://ghcr.io"
       registry_username          = var.registry_username

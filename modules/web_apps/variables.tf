@@ -37,11 +37,11 @@ variable "web_apps" {
     registry_password          = string
     image_name                 = string
     cosmosdb_connection_string = optional(string)
-    subnet_id                  = string
+    subnet_id                  = string # not used (free tier)
   }))
 }
 
-variable "analytics_workspace_id" {
+variable "log_analytics_workspace_id" {
   description = "(Required) The id of the Log Analytics Workspace where App logs should be sent."
   type        = string
 }

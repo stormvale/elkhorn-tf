@@ -14,3 +14,8 @@ output "primary_access_key" {
 output "primary_connection_string" {
   value = azurerm_storage_account.storage.primary_connection_string
 }
+
+output "container_names" {
+  description = "List of created storage container names."
+  value       = [for c in azurerm_storage_container.containers : c.name]
+}

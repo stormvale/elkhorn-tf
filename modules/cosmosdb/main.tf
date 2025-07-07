@@ -35,25 +35,43 @@ resource "azurerm_cosmosdb_account" "account" {
   }
 }
 
-
-# To take advantage of the free tier during development, we will use a single database
-# with containers for each service, instead of the preferred "database per service" approach.
 resource "azurerm_cosmosdb_sql_database" "db" {
-  # for_each            = var.databases
+  for_each = var.cosmos_databases
 
-  name                = "elkhornDb" # each.key
+  name                = each.key
   resource_group_name = var.resource_group_name
   account_name        = azurerm_cosmosdb_account.account.name
-  throughput          = 1000 # Free tier max = 1000 RU/s per account
+  throughput          = try(each.value.throughput, null)
+}
+
+locals {
+  # flatten the nested structure of containers
+  cosmos_containers = flatten([
+    for db_name, db in var.cosmos_databases : [
+      for container_name, container in db.containers : {
+        db_name             = db_name
+        container_name      = container_name
+        partition_key_paths = container.partition_key_paths
+        throughput          = try(container.throughput, null)
+      }
+    ]
+  ])
+
+  # convert to a map to use in for_each
+  cosmos_container_map = {
+    for item in local.cosmos_containers :
+    "${item.db_name}.${item.container_name}" => item
+  }
 }
 
 resource "azurerm_cosmosdb_sql_container" "container" {
-  for_each = var.databases
+  for_each = local.cosmos_container_map
 
   name                  = each.value.container_name
   resource_group_name   = var.resource_group_name
   account_name          = azurerm_cosmosdb_account.account.name
-  database_name         = azurerm_cosmosdb_sql_database.db.name # azurerm_cosmosdb_sql_database.db[each.key].name
+  database_name         = each.value.db_name
   partition_key_paths   = each.value.partition_key_paths
   partition_key_version = 2
+  throughput            = each.value.throughput
 }

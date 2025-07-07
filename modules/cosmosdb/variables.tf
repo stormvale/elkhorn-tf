@@ -25,12 +25,14 @@ variable "environment" {
   }
 }
 
-variable "databases" {
+variable "cosmos_databases" {
   description = "Map of Cosmos DB databases and their container configurations. Note: for development, all containers will be created in a single database named 'elkhornDb'"
   type = map(object({
-    container_name      = string
-    partition_key_paths = list(string)
-    throughput          = optional(number)
+    throughput = optional(number)
+    containers = map(object({
+      partition_key_paths = set(string)
+      throughput          = optional(number)
+    }))
   }))
 }
 
