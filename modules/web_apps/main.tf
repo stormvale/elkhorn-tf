@@ -83,7 +83,7 @@ resource "azurerm_api_management" "apim" {
 resource "azurerm_api_management_api" "apim_api" {
   for_each = var.web_apps
 
-  name                = "api-${each.key}-${local.name_suffix}"
+  name                = "${each.key}-api"
   resource_group_name = var.resource_group_name
   api_management_name = azurerm_api_management.apim.name
   revision            = "1"
@@ -93,7 +93,7 @@ resource "azurerm_api_management_api" "apim_api" {
   protocols           = ["https"]
 
   import {
-    content_format = "openapi+json"
+    content_format = "openapi-link"
     content_value  = "https://${azurerm_linux_web_app.web_app[each.key].default_hostname}/openapi/v1.json"
   }
 }
