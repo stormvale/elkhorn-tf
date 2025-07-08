@@ -191,6 +191,7 @@ jobs:
   apply-dev:
     runs-on: ubuntu-latest
     needs: [ plan ]
+    if: needs.plan.outputs.developmentHasChanges == 'true'
     environment: development
 
     steps:
@@ -236,7 +237,6 @@ jobs:
       # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
       - name: Terraform Init
         id: init
-        if: needs.plan.outputs.developmentHasChanges == 'true'
         env:
           RESOURCE_GROUP_NAME: ${{ secrets.TF_RESOURCE_GROUP_NAME }}
           STORAGE_ACCOUNT: ${{ secrets.TF_STORAGE_ACCOUNT_NAME }}
@@ -253,7 +253,6 @@ jobs:
       # Run a Terraform apply (only if there are changes for the environment)
       - name: Terraform Apply
         id: apply
-        if: needs.plan.outputs.developmentHasChanges == 'true'
         env:
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
@@ -278,6 +277,7 @@ jobs:
   apply-prod:
     runs-on: ubuntu-latest
     needs: [ plan ]
+    if: needs.plan.outputs.productionHasChanges == 'true'
     environment: production
 
     steps:
@@ -339,7 +339,6 @@ jobs:
       # Run a Terraform apply (only if there are changes for the environment)
       - name: Terraform Apply
         id: apply
-        if: 
         env:
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
