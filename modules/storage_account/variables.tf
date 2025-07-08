@@ -45,3 +45,9 @@ variable "account_replication_type" {
   type        = string
   default     = "LRS"
 }
+
+variable "containers" {
+  description = "(Optional) List of storage containers to create in the storage account."
+  type        = set(string)
+  default     = []
+}

@@ -4,11 +4,6 @@ variable "resource_group_name" {
   type        = string
 }
 
-variable "tenant_id" {
-  description = "(Required) The Azure tenant ID that should be used for authenticating requests to the key vault."
-  type        = string
-}
-
 variable "location" {
   description = "(Required) The Azure region where the resource should exist"
   type        = string
@@ -28,6 +23,17 @@ variable "environment" {
     condition     = var.environment == null || contains(["development", "production"], var.environment)
     error_message = "Allowed values for environment are \"development\", \"production\"."
   }
+}
+
+variable "cosmos_databases" {
+  description = "Map of Cosmos DB databases and their container configurations. Note: for development, all containers will be created in a single database named 'elkhornDb'"
+  type = map(object({
+    throughput = optional(number)
+    containers = map(object({
+      partition_key_paths = set(string)
+      throughput          = optional(number)
+    }))
+  }))
 }
 
 variable "tags" {

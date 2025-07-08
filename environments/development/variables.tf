@@ -4,11 +4,6 @@ variable "subscription_id" {
   type        = string
 }
 
-variable "registry_username" {
-  description = "(Required) GitHub username to access the GitHub Container Registry."
-  type        = string
-}
-
 variable "location" {
   description = "(Required) The Azure region where the resource should exist."
   type        = string
@@ -19,26 +14,16 @@ variable "location" {
   }
 }
 
-# variable "container_apps" {
-#   description = "Azure Container App resources that should exist"
-#   type = map(object({
-#     image  = string
-#     cpu    = number
-#     memory = string
+variable "registry_username" {
+  description = "(Required) The username to access the configured container registry."
+  type        = string
+}
 
-#     env_vars = list(object({
-#       name        = string
-#       value       = optional(string)
-#       secret_name = optional(string)
-#     }))
-
-#     secrets = optional(list(object({
-#       name  = string
-#       value = string
-#     })), [])
-
-#   }))
-# }
+variable "registry_password" {
+  description = "(Required) The password/token to access the configured container registry."
+  type        = string
+  sensitive   = true
+}
 
 ####################################################################################
 

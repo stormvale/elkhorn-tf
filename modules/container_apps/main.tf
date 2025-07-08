@@ -34,7 +34,7 @@ resource "azurerm_container_app" "apps" {
     external_enabled = each.value.ingress_enabled
     target_port      = 80
     traffic_weight {
-        percentage = 100
+      percentage = 100
     }
   }
 

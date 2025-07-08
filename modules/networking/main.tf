@@ -8,12 +8,24 @@ resource "azurerm_virtual_network" "network" {
 }
 
 resource "azurerm_subnet" "subnets" {
-  for_each             = var.subnets
+  for_each = var.subnets
+
   name                 = each.key
   resource_group_name  = var.resource_group_name
   virtual_network_name = azurerm_virtual_network.network.name
   address_prefixes     = each.value.address_prefixes
   service_endpoints    = each.value.service_endpoints
+
+  dynamic "delegation" {
+    for_each = each.value.delegation != null ? [each.value.delegation] : []
+    content {
+      name = "${each.key}-delegation"
+      service_delegation {
+        name    = delegation.value.service_delegation_name
+        actions = delegation.value.actions
+      }
+    }
+  }
 }
 
 resource "azurerm_network_security_group" "nsgs" {
