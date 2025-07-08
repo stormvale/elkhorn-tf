@@ -169,37 +169,31 @@ jobs:
     steps:
       - run: echo '${{ toJSON(needs.plan.outputs) }}'
 
-  approval:
+  # approval:
+  #   runs-on: ubuntu-latest
+  #   needs: [ plan ]
+  #   environment: production
+  #   if: success() # Only proceed if plan job succeeds
+
+  #   steps:
+  #     - name: Wait for Manual Approval
+  #       run: echo "Approve this step in GitHub Environments before proceeding."
+
+  #     - name: Show Plan Outputs
+  #       run: |
+  #         echo "developmentHasChanges: ${{ needs.plan.outputs.developmentHasChanges }}"
+  #         echo "productionHasChanges: ${{ needs.plan.outputs.productionHasChanges }}"
+
+  #   outputs: # need to pass the outputs along
+  #     developmentHasChanges: ${{ needs.plan.outputs.developmentHasChanges }}
+  #     productionHasChanges: ${{ needs.plan.outputs.productionHasChanges }}
+
+  apply-dev:
     runs-on: ubuntu-latest
     needs: [ plan ]
-    environment: production
-    if: success() # Only proceed if plan job succeeds
+    environment: development
 
     steps:
-      - name: Wait for Manual Approval
-        run: echo "Approve this step in GitHub Environments before proceeding."
-
-      - name: Show Plan Outputs
-        run: |
-          echo "developmentHasChanges: ${{ needs.plan.outputs.developmentHasChanges }}"
-          echo "productionHasChanges: ${{ needs.plan.outputs.productionHasChanges }}"
-
-    outputs: # need to pass the outputs along
-      developmentHasChanges: ${{ needs.plan.outputs.developmentHasChanges }}
-      productionHasChanges: ${{ needs.plan.outputs.productionHasChanges }}
-
-  apply:
-    runs-on: ubuntu-latest
-    needs: [ approval ]
-
-    strategy:
-      matrix:
-        environment: [development, production]
-
-    environment: ${{ matrix.environment }}
-
-    steps:
-      # Checkout the repository to the GitHub Actions runner
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -207,8 +201,8 @@ jobs:
       - name: Download Terraform Plan Artifact
         uses: actions/download-artifact@v4
         with:
-          name: ${{ matrix.environment }}.tfplan
-          path: environments/${{ matrix.environment }} # keep the plan in the environment directory
+          name: ${{ vars.ENV_NAME }}.tfplan
+          path: environments/${{ vars.ENV_NAME }} # keep the plan in the environment directory
 
       # Install the latest version of Terraform CLI and configure the Terraform CLI configuration file with a Terraform Cloud user API token
       - name: Setup Terraform
@@ -239,23 +233,92 @@ jobs:
               --ip-address $agentIP
             sleep 30
 
-      # temp
-      - name: Show Plan Outputs
+      # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
+      - name: Terraform Init
+        id: init
+        if: needs.plan.outputs.developmentHasChanges == 'true'
+        env:
+          RESOURCE_GROUP_NAME: ${{ secrets.TF_RESOURCE_GROUP_NAME }}
+          STORAGE_ACCOUNT: ${{ secrets.TF_STORAGE_ACCOUNT_NAME }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+        run: >
+          cd environments/${{ vars.ENV_NAME }} &&
+          terraform init -force-copy
+          -backend-config="resource_group_name=$RESOURCE_GROUP_NAME"
+          -backend-config="storage_account_name=$STORAGE_ACCOUNT"
+          -backend-config="container_name=tfstate"
+
+      # Run a Terraform apply (only if there are changes for the environment)
+      - name: Terraform Apply
+        id: apply
+        if: needs.plan.outputs.developmentHasChanges == 'true'
+        env:
+          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
         run: |
-          echo "developmentHasChanges: ${{ needs.approval.outputs.developmentHasChanges }}"
-          echo "productionHasChanges: ${{ needs.approval.outputs.productionHasChanges }}"
+          cd environments/${{ vars.ENV_NAME }}
+          terraform apply -no-color ${{ vars.ENV_NAME }}.tfplan
 
-      # temp
-      - name: check condition 2
-        run: echo "check condition 2"
-        if: |
-          (${{matrix.environment == 'development' && needs.approval.outputs.developmentHasChanges == 'true'}}) ||
-          (${{matrix.environment == 'production' && needs.approval.outputs.productionHasChanges == 'true'}})
+      # Remove the GitHub runner IP from the storage account firewall rules to prevent unauthorized access.
+      - name: Remove GitHub Runner IP from Whitelist
+        if: always()
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            set -eu
+            agentIP=$(curl -s https://api.ipify.org/)
+            az storage account network-rule remove  \
+              --resource-group "${{ secrets.TF_RESOURCE_GROUP_NAME }}" \
+              --account-name "${{ secrets.TF_STORAGE_ACCOUNT_NAME }}" \
+              --ip-address $agentIP
 
-      # temp
-      - name: check condition 3
-        run: echo ${{needs.approval.outputs.developmentHasChanges == 'true' }}
-        if: matrix.environment == 'development'
+  apply-prod:
+    runs-on: ubuntu-latest
+    needs: [ plan ]
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Download Terraform plan artifact from the previous job. If this doesn't exist we should fail early.
+      - name: Download Terraform Plan Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ vars.ENV_NAME }}.tfplan
+          path: environments/${{ vars.ENV_NAME }} # keep the plan in the environment directory
+
+      # Install the latest version of Terraform CLI and configure the Terraform CLI configuration file with a Terraform Cloud user API token
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      # Log into Azure with OIDC integration. (requires federated credentials on the App Registration in Azure.)
+      - name: 'Azure login'
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # Run az commands to confirm sub access
+      - name: 'Az account show'
+        run: az account show
+
+      # Add a network access rule to the storage account since it is private and only allows access from specific IPs.
+      - name: Whitelist GitHub Runner IP
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            set -eu
+            agentIP=$(curl -s https://api.ipify.org/)
+            az storage account network-rule add \
+              --resource-group "${{ secrets.TF_RESOURCE_GROUP_NAME }}" \
+              --account-name "${{ secrets.TF_STORAGE_ACCOUNT_NAME }}" \
+              --ip-address $agentIP
+            sleep 30
 
       # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
       - name: Terraform Init
@@ -267,7 +330,7 @@ jobs:
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
         run: >
-          cd environments/${{ matrix.environment }} &&
+          cd environments/${{ vars.ENV_NAME }} &&
           terraform init -force-copy
           -backend-config="resource_group_name=$RESOURCE_GROUP_NAME"
           -backend-config="storage_account_name=$STORAGE_ACCOUNT"
@@ -276,13 +339,14 @@ jobs:
       # Run a Terraform apply (only if there are changes for the environment)
       - name: Terraform Apply
         id: apply
+        if: 
         env:
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
         run: |
-          cd environments/${{ matrix.environment }}
-          terraform apply -no-color ${{ matrix.environment }}.tfplan
+          cd environments/${{ vars.ENV_NAME }}
+          terraform apply -no-color ${{ vars.ENV_NAME }}.tfplan
 
       # Remove the GitHub runner IP from the storage account firewall rules to prevent unauthorized access.
       - name: Remove GitHub Runner IP from Whitelist
