@@ -80,6 +80,8 @@ resource "azurerm_api_management" "apim" {
   sku_name            = "Consumption_0" # 1M api operations (per month?)
 }
 
+# TODO: configure subscriptions for tighter api acess. see "azurerm_api_management_subscription"
+
 resource "azurerm_api_management_api" "apim_api" {
   for_each = var.web_apps
 
