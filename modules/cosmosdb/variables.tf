@@ -42,6 +42,12 @@ variable "tags" {
   default     = {}
 }
 
+variable "allowed_subnet_ids" {
+  description = "(Optional) A list of subnet IDs to allow access to Cosmos DB"
+  type        = set(string)
+  default     = null
+}
+
 ####################################################################################
 
 variable "location_map" {

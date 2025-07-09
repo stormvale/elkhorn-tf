@@ -1,7 +1,12 @@
 provider "azurerm" {
-  features {}
   subscription_id = var.subscription_id
   use_oidc        = true
+
+  features {
+    api_management { purge_soft_delete_on_destroy = true }
+    key_vault { purge_soft_delete_on_destroy = true }
+    log_analytics_workspace { permanently_delete_on_destroy = true }
+  }
 }
 
 data "azurerm_client_config" "current" {}
@@ -34,15 +39,11 @@ module "networking" {
   tags                = local.tags
 
   subnets = {
-    gateway = {
-      address_prefixes  = ["10.0.0.0/24"] # 10.0.0.0 - 10.0.0.255
-      service_endpoints = []              # not sure if we really care about this?
-    },
     web_apps = {
       address_prefixes  = ["10.0.1.0/26"] # 10.0.1.0 - 10.0.1.63
-      service_endpoints = []
+      service_endpoints = ["Microsoft.Web", "Microsoft.AzureCosmosDB", "Microsoft.KeyVault"]
       delegation = {
-        service_delegation_name = "Microsoft.Web/serverFarms"
+        service_delegation_name = "Microsoft.Web/serverFarms" # this is used for App Service Plans (Web Apps)
         actions                 = ["Microsoft.Network/virtualNetworks/subnets/action"]
       }
     }
@@ -78,9 +79,7 @@ resource "azurerm_log_analytics_workspace" "log_workspace" {
   daily_quota_gb      = 1
   tags                = local.tags
 
-  identity {
-    type = "SystemAssigned"
-  }
+  identity { type = "SystemAssigned" }
 }
 
 module "cosmosdb" {
@@ -89,6 +88,7 @@ module "cosmosdb" {
   resource_group_name = azurerm_resource_group.rg.name
   location            = azurerm_resource_group.rg.location
   environment         = "development"
+  allowed_subnet_ids  = [module.networking.subnet_ids["web_apps"]]
   tags                = local.tags
 
   # To take advantage of the free tier during development, we will use a single database
@@ -113,6 +113,7 @@ module "web_apps" {
   location                   = azurerm_resource_group.rg.location
   environment                = "development"
   log_analytics_workspace_id = azurerm_log_analytics_workspace.log_workspace.id
+  environment_keyvault_id    = module.key_vault.key_vault_id
   tags                       = local.tags
 
   # the key names are important, as they are used to generate the db connection string name where required.
@@ -122,6 +123,14 @@ module "web_apps" {
       registry_username          = var.registry_username
       registry_password          = var.registry_password
       image_name                 = "stormvale/restaurants.api:latest",
+      cosmosdb_connection_string = module.cosmosdb.account_connection_string
+      subnet_id                  = module.networking.subnet_ids["web_apps"]
+    }
+    schools = {
+      registry_url               = "https://ghcr.io"
+      registry_username          = var.registry_username
+      registry_password          = var.registry_password
+      image_name                 = "stormvale/schools.api:latest",
       cosmosdb_connection_string = module.cosmosdb.account_connection_string
       subnet_id                  = module.networking.subnet_ids["web_apps"]
     }

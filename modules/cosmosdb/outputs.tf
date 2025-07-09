@@ -11,3 +11,7 @@ output "account_connection_string" {
   value       = azurerm_cosmosdb_account.account.primary_sql_connection_string
   sensitive   = true
 }
+
+output "principal_id" {
+  value = azurerm_cosmosdb_account.account.identity[0].principal_id
+}

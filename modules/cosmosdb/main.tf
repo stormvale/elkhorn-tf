@@ -9,6 +9,7 @@ resource "azurerm_cosmosdb_account" "account" {
   kind                                  = "GlobalDocumentDB"
   free_tier_enabled                     = true
   network_acl_bypass_for_azure_services = true
+  is_virtual_network_filter_enabled     = true
   tags                                  = var.tags
 
   backup {
@@ -30,8 +31,15 @@ resource "azurerm_cosmosdb_account" "account" {
   # Azure Portal Middleware IP addresses
   ip_range_filter = ["13.91.105.215", "4.210.172.107", "13.88.56.148", "40.91.218.243"]
 
-  identity {
-    type = "SystemAssigned"
+  identity { type = "SystemAssigned" }
+
+  # any subnet id's that are allowed to access this account
+  dynamic "virtual_network_rule" {
+    for_each = var.allowed_subnet_ids != null ? var.allowed_subnet_ids : []
+    content {
+      id                                   = virtual_network_rule.value
+      ignore_missing_vnet_service_endpoint = true
+    }
   }
 }
 
@@ -41,7 +49,10 @@ resource "azurerm_cosmosdb_sql_database" "db" {
   name                = each.key
   resource_group_name = var.resource_group_name
   account_name        = azurerm_cosmosdb_account.account.name
-  throughput          = try(each.value.throughput, null)
+
+  autoscale_settings {
+    max_throughput = try(each.value.throughput, null)
+  }
 }
 
 locals {
@@ -73,5 +84,4 @@ resource "azurerm_cosmosdb_sql_container" "container" {
   database_name         = each.value.db_name
   partition_key_paths   = each.value.partition_key_paths
   partition_key_version = 2
-  throughput            = each.value.throughput
 }
