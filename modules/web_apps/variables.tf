@@ -46,6 +46,11 @@ variable "log_analytics_workspace_id" {
   type        = string
 }
 
+variable "environment_keyvault_id" {
+  description = "(Required) The id of the Key Vault where the Web Apps should read their secrets."
+  type        = string
+}
+
 ####################################################################################
 
 variable "location_map" {

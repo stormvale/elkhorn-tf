@@ -39,8 +39,14 @@ terraform plan
 # create a plan to deprovision/destroy all resources managed by terraform
 terraform plan -destroy
 
-# detry resources
+# destroy resources
 terraform destroy -auto-approve
+
+# generate a simplified graph of resource dependencies
+terraform graph | dot -Tsvg > graph.svg
+
+# generate a detailed graph of resource dependencies and highlight any cycles
+terraform graph -type=plan -draw-cycles | dot -Tsvg > graph.svg
 
 terraform state list
 terraform state show 

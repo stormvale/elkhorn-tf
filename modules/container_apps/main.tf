@@ -38,9 +38,7 @@ resource "azurerm_container_app" "apps" {
     }
   }
 
-  identity {
-    type = "SystemAssigned"
-  }
+  identity { type = "SystemAssigned" }
 
   dynamic "secret" {
     for_each = each.value.secrets

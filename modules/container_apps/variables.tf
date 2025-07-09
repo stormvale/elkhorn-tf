@@ -52,8 +52,6 @@ variable "container_apps" {
       identity            = optional(string)
       key_vault_secret_id = optional(string)
     })), [])
-
-
   }))
 
   default = []
@@ -80,7 +78,6 @@ variable "container_apps" {
     ]))
     error_message = "Each secret must have either a 'value' or both 'key_vault_secret_id' and 'identity', but not both."
   }
-
 }
 
 variable "registry_username" {
