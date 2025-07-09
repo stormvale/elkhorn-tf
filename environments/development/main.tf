@@ -68,6 +68,12 @@ module "key_vault" {
   tenant_id           = data.azurerm_client_config.current.tenant_id
   environment         = "development"
   tags                = local.tags
+
+  secrets = {
+    container-registry-username = var.registry_username
+    container-registry-password = var.registry_password
+    cosmosdb-connection-string  = module.cosmosdb.account_connection_string
+  }
 }
 
 resource "azurerm_log_analytics_workspace" "log_workspace" {
@@ -82,14 +88,47 @@ resource "azurerm_log_analytics_workspace" "log_workspace" {
   identity { type = "SystemAssigned" }
 }
 
+module "service_bus" {
+  source = "../../modules/servicebus"
+
+  resource_group_name = azurerm_resource_group.rg.name
+  location            = var.location
+  environment         = "development"
+  tags                = local.tags
+
+  topics = [] # a topic for each microservice is created in the container_apps module
+}
+
+# a shared user-assigned managed identity for container apps
+resource "azurerm_user_assigned_identity" "container_apps_identity" {
+  name                = "id-ca-${local.name_suffix}"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.rg.name
+  tags                = local.tags
+}
+
+# container apps can read key vault secrets
+resource "azurerm_role_assignment" "role_ca_kv_secrets_user" {
+  scope                = module.key_vault.key_vault_id
+  principal_id         = azurerm_user_assigned_identity.container_apps_identity.principal_id
+  role_definition_name = "Key Vault Secrets User"
+}
+
+# container apps can create service bus topics (dapr needs this)
+resource "azurerm_role_assignment" "role_ca_sbns_data_owner" {
+  scope                = module.service_bus.id
+  principal_id         = azurerm_user_assigned_identity.container_apps_identity.principal_id
+  role_definition_name = "Azure Service Bus Data Owner"
+}
+
 module "cosmosdb" {
   source = "../../modules/cosmosdb"
 
   resource_group_name = azurerm_resource_group.rg.name
   location            = azurerm_resource_group.rg.location
   environment         = "development"
-  allowed_subnet_ids  = [module.networking.subnet_ids["web_apps"]]
-  tags                = local.tags
+  # allowed_subnet_ids  = [module.networking.subnet_ids["web_apps"]]
+  tags = local.tags
 
   # To take advantage of the free tier during development, we will use a single database
   # with containers for each service, instead of the preferred "database per service" approach.
@@ -106,36 +145,147 @@ module "cosmosdb" {
   }
 }
 
-module "web_apps" {
-  source = "../../modules/web_apps"
+module "container_app_env" {
+  source = "../../modules/container_app_env"
 
   resource_group_name        = azurerm_resource_group.rg.name
   location                   = azurerm_resource_group.rg.location
-  environment                = "development"
   log_analytics_workspace_id = azurerm_log_analytics_workspace.log_workspace.id
-  environment_keyvault_id    = module.key_vault.key_vault_id
+  environment                = "development"
   tags                       = local.tags
 
-  # the key names are important, as they are used to generate the db connection string name where required.
-  web_apps = {
+  # disabling networking stuff to try to keep azure from creating the load balancer => $$
+  # virtual_network_name       = module.networking.virtual_network_name
+  # subnet_cidr                = "10.0.2.0/23"
+}
+
+module "container_apps" {
+  source = "../../modules/container_apps"
+
+  resource_group_name          = azurerm_resource_group.rg.name
+  location                     = azurerm_resource_group.rg.location
+  environment_keyvault_id      = module.key_vault.key_vault_id
+  container_app_environment_id = module.container_app_env.id
+  container_apps_identity_id   = azurerm_user_assigned_identity.container_apps_identity.id
+  registry_username            = var.registry_username
+  environment                  = "development"
+  servicebus_namespace_id      = module.service_bus.id
+  tags                         = local.tags
+
+  container_apps = {
     restaurants = {
-      registry_url               = "https://ghcr.io"
-      registry_username          = var.registry_username
-      registry_password          = var.registry_password
-      image_name                 = "stormvale/restaurants.api:latest",
-      cosmosdb_connection_string = module.cosmosdb.account_connection_string
-      subnet_id                  = module.networking.subnet_ids["web_apps"]
+      cpu             = 0.25
+      memory          = "0.5Gi"
+      image           = "ghcr.io/stormvale/restaurants.api:latest"
+      ingress_enabled = true
+
+      secrets = [
+        {
+          name                = "db-conn-string"
+          key_vault_secret_id = module.key_vault.secret_ids["cosmosdb-connection-string"]
+        },
+        {
+          name                = "gh-pat-secret"
+          key_vault_secret_id = module.key_vault.secret_ids["container-registry-password"]
+        }
+      ]
+
+      environment_variables = [
+        {
+          name        = "ConnectionStrings__elkhornDb"
+          secret_name = "db-conn-string"
+        },
+        {
+          name  = "ASPNETCORE_ENVIRONMENT"
+          value = "Development"
+        }
+      ]
     }
     schools = {
-      registry_url               = "https://ghcr.io"
-      registry_username          = var.registry_username
-      registry_password          = var.registry_password
-      image_name                 = "stormvale/schools.api:latest",
-      cosmosdb_connection_string = module.cosmosdb.account_connection_string
-      subnet_id                  = module.networking.subnet_ids["web_apps"]
+      cpu             = 0.25
+      memory          = "0.5Gi"
+      image           = "ghcr.io/stormvale/schools.api:latest"
+      ingress_enabled = true
+
+      secrets = [
+        {
+          name                = "db-conn-string"
+          key_vault_secret_id = module.key_vault.secret_ids["cosmosdb-connection-string"]
+        },
+        {
+          name                = "gh-pat-secret"
+          key_vault_secret_id = module.key_vault.secret_ids["container-registry-password"]
+        }
+      ]
+
+      environment_variables = [
+        {
+          name        = "ConnectionStrings__elkhornDb"
+          secret_name = "db-conn-string"
+        },
+        {
+          name  = "ASPNETCORE_ENVIRONMENT"
+          value = "Development"
+        }
+      ]
     }
   }
+
+  dapr_components = [
+    {
+      name           = "secretstore"
+      component_type = "secretstores.azure.keyvault"
+      scopes         = ["restaurants", "schools"]
+      metadata = [
+        { name = "vaultName", value = module.key_vault.key_vault_name },
+        { name = "spnClientId", value = azurerm_user_assigned_identity.container_apps_identity.client_id }
+      ]
+    },
+    {
+      name           = "pubsub"
+      component_type = "pubsub.azure.servicebus.topics"
+      scopes         = ["restaurants", "schools"]
+      metadata = [
+        { name = "connectionString", secret_name = "servicebus-conn" },
+        { name = "createTopicIfNotExists", value = "true" }
+      ]
+      secret = [
+        { name = "servicebus-conn", value = module.service_bus.dapr_access_connection_string }
+      ]
+    }
+  ]
 }
 
 ###########################################################################
 
+# working, but switched to using container apps instead because of easier dapr integration.
+# module "web_apps" {
+#   source = "../../modules/web_apps"
+
+#   resource_group_name        = azurerm_resource_group.rg.name
+#   location                   = azurerm_resource_group.rg.location
+#   log_analytics_workspace_id = azurerm_log_analytics_workspace.log_workspace.id
+#   environment_keyvault_id    = module.key_vault.key_vault_id
+#   environment                = "development"
+#   tags                       = local.tags
+
+#   # the key names are important, as they are used to generate the db connection string name where required.
+#   web_apps = {
+#     restaurants = {
+#       registry_url               = "https://ghcr.io"
+#       registry_username          = var.registry_username
+#       registry_password          = var.registry_password
+#       image_name                 = "stormvale/restaurants.api:latest",
+#       cosmosdb_connection_string = module.cosmosdb.account_connection_string
+#       subnet_id                  = module.networking.subnet_ids["web_apps"]
+#     }
+#     schools = {
+#       registry_url               = "https://ghcr.io"
+#       registry_username          = var.registry_username
+#       registry_password          = var.registry_password
+#       image_name                 = "stormvale/schools.api:latest",
+#       cosmosdb_connection_string = module.cosmosdb.account_connection_string
+#       subnet_id                  = module.networking.subnet_ids["web_apps"]
+#     }
+#   }
+# }

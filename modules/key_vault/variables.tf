@@ -36,6 +36,13 @@ variable "tags" {
   default     = {}
 }
 
+variable "secrets" {
+  description = "Map of secrets to create in the Key Vault"
+  type        = map(string)
+  default     = {}
+}
+
+
 ####################################################################################
 
 variable "location_map" {

@@ -2,11 +2,11 @@
 resource "azurerm_container_app" "apps" {
   for_each = var.container_apps
 
-  name                         = each.key
+  name                         = "ca-${each.key}-${local.name_suffix}"
   resource_group_name          = var.resource_group_name
   container_app_environment_id = var.container_app_environment_id
-  location                     = var.location
   revision_mode                = "Single"
+  tags                         = var.tags
 
   template {
     container {
@@ -16,117 +16,98 @@ resource "azurerm_container_app" "apps" {
       memory = each.value.memory
 
       dynamic "env" {
-        for_each = each.value.environment_variables
+        for_each = { for v in each.value.environment_variables : v.name => v }
         content {
           name        = env.value.name
           value       = env.value.value
           secret_name = env.value.secret_name
         }
       }
-
     }
 
     min_replicas = 0
-    max_replicas = 2
+    max_replicas = 1
+
+    # other scale rule types available
+    http_scale_rule {
+      name                = "increased-http-traffic"
+      concurrent_requests = "100"
+    }
   }
 
   ingress {
     external_enabled = each.value.ingress_enabled
-    target_port      = 80
+    target_port      = 8080
+    transport        = "http"
+
     traffic_weight {
-      percentage = 100
+      latest_revision = true
+      percentage      = 100
     }
   }
 
-  identity { type = "SystemAssigned" }
+  identity {
+    type         = "SystemAssigned, UserAssigned"
+    identity_ids = [var.container_apps_identity_id]
+  }
 
   dynamic "secret" {
     for_each = each.value.secrets
+    content {
+      name                = secret.value.name
+      value               = secret.value.value
+      identity            = var.container_apps_identity_id
+      key_vault_secret_id = secret.value.key_vault_secret_id
+    }
+  }
+
+  registry {
+    server               = "ghcr.io"
+    username             = var.registry_username
+    password_secret_name = "gh-pat-secret"
+  }
+
+  dapr {
+    app_id       = "${each.key}-api"
+    app_port     = 8080
+    app_protocol = "http"
+  }
+
+  lifecycle {
+    ignore_changes = [secret] # recommended when using key_vault_secret_id
+  }
+}
+
+resource "azurerm_container_app_environment_dapr_component" "components" {
+  for_each = { for c in nonsensitive(var.dapr_components) : c.name => c }
+
+  name                         = each.key
+  container_app_environment_id = var.container_app_environment_id
+  component_type               = each.value.component_type
+  scopes                       = each.value.scopes
+  version                      = "v1"
+
+  dynamic "metadata" {
+    for_each = each.value.metadata != null ? each.value.metadata : []
+    content {
+      name        = metadata.value.name
+      value       = metadata.value.value
+      secret_name = metadata.value.secret_name
+    }
+  }
+
+  dynamic "secret" {
+    for_each = each.value.secret != null ? each.value.secret : []
     content {
       name  = secret.value.name
       value = secret.value.value
     }
   }
-
-  registry {
-    server               = var.registry_server
-    username             = var.registry_username
-    password_secret_name = "gh-pat-secret"
-  }
-
-  lifecycle {
-    ignore_changes = [secret] # reccommended when using key_vault_secret_id
-  }
-
-  tags = {
-    environment = "development"
-    managedby   = "terraform"
-  }
 }
 
-
-# resource "azurerm_container_app" "api_weather" {
-#   name                         = "api-weather-${local.name_suffix}"
-#   container_app_environment_id = azurerm_container_app_environment.cae.id
-#   resource_group_name          = azurerm_resource_group.rg.name
-#   revision_mode                = "Single"
-
-#   template {
-#     container {
-#       name   = "api-weather" # lower case alphanumeric characters or '-'. max 63 chars
-#       image  = "ghcr.io/stormvale/api.weather:latest"
-#       cpu    = 0.25
-#       memory = "0.5Gi"
-
-#       env { # environment variables can refer to secrets
-#         name        = "ConnectionStrings__postgres"
-#         secret_name = "conn-string-db"
-#       }
-#     }
-
-#     # init_container { <ef migrations> }
-#   }
-
-#   identity {
-#     type         = "SystemAssigned, UserAssigned"
-#     identity_ids = [azurerm_user_assigned_identity.api_weather_id.id]
-#   }
-
-#   ingress {
-#     external_enabled = true
-#     target_port      = 8080
-#     transport        = "http"
-
-#     traffic_weight {
-#       latest_revision = true
-#       percentage      = 100
-#     }
-#   }
-
-#   secret {
-#     name                = "gh-pat-secret"
-#     identity            = azurerm_user_assigned_identity.api_weather_id.id
-#     key_vault_secret_id = data.azurerm_key_vault_secret.github_pat.versionless_id
-#     # per docs: When using key_vault_secret_id, ignore_changes should be used to ignore any changes to value. (see lifecycle)
-#   }
-
-#   secret {
-#     name  = "conn-string-db"
-#     value = "<db connection string goes here>"
-#   }
-
-#   registry {
-#     server               = "ghcr.io"
-#     username             = var.registry_username
-#     password_secret_name = "gh-pat-secret"
-#   }
-
-#   lifecycle {
-#     ignore_changes = [secret]
-#   }
-
-#   tags = {
-#     environment = "development"
-#     managedby   = "terraform"
-#   }
-# }
+resource "azurerm_servicebus_topic" "topics" {
+  for_each             = var.container_apps
+  name                 = "${each.key}-events"
+  namespace_id         = var.servicebus_namespace_id
+  partitioning_enabled = false
+}
