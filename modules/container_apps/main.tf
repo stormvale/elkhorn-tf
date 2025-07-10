@@ -7,6 +7,13 @@ resource "azurerm_container_app" "apps" {
   container_app_environment_id = var.container_app_environment_id
   revision_mode                = "Single"
   tags                         = var.tags
+  
+  lifecycle {
+    ignore_changes = [
+      secret, # don't recreate this resource when key vault secrets change
+      template[0].container[0].image # don't reset image if manually deployed (eg. pr, other tag)
+    ]
+  }
 
   template {
     container {
@@ -72,12 +79,9 @@ resource "azurerm_container_app" "apps" {
     app_port     = 8080
     app_protocol = "http"
   }
-
-  lifecycle {
-    ignore_changes = [secret] # recommended when using key_vault_secret_id
-  }
 }
 
+# TODO: move all the dapr components stuff out into their own module and configure each component separately
 resource "azurerm_container_app_environment_dapr_component" "components" {
   for_each = { for c in nonsensitive(var.dapr_components) : c.name => c }
 

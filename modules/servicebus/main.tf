@@ -10,7 +10,7 @@ resource "azurerm_servicebus_namespace_authorization_rule" "dapr_pubsub" {
   name         = "dapr-pubsub-access"
   namespace_id = azurerm_servicebus_namespace.sb.id
 
-  manage = false # this may need to change ?
+  manage = true # needed by dapr to create & manage subscriptions to the topic
   listen = true
   send   = true
 }

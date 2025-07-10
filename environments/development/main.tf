@@ -235,7 +235,7 @@ module "container_apps" {
     {
       name           = "secretstore"
       component_type = "secretstores.azure.keyvault"
-      scopes         = ["restaurants", "schools"]
+      scopes         = ["restaurants-api", "schools-api"]
       metadata = [
         { name = "vaultName", value = module.key_vault.key_vault_name },
         { name = "spnClientId", value = azurerm_user_assigned_identity.container_apps_identity.client_id }
@@ -244,7 +244,7 @@ module "container_apps" {
     {
       name           = "pubsub"
       component_type = "pubsub.azure.servicebus.topics"
-      scopes         = ["restaurants", "schools"]
+      scopes         = ["restaurants-api", "schools-api"]
       metadata = [
         { name = "connectionString", secret_name = "servicebus-conn" },
         { name = "createTopicIfNotExists", value = "true" }
@@ -256,36 +256,41 @@ module "container_apps" {
   ]
 }
 
-###########################################################################
+module "api_management" {
+  source = "../../modules/api_management"
+  
+  resource_group_name          = azurerm_resource_group.rg.name
+  location                     = azurerm_resource_group.rg.location
+  environment                  = "development"
+  tags = local.tags
 
-# working, but switched to using container apps instead because of easier dapr integration.
-# module "web_apps" {
-#   source = "../../modules/web_apps"
+  apis = [
+    {
+      name = "restaurants-api"
+      display_name = "Restaurants API"
+      path = "restaurants"
+      revision = "1"
+      protocols = ["https"]
+      import_url = "${module.container_apps.container_app_urls["restaurants"]}/openapi/v1.json" 
+    }
+  ]
+}
 
-#   resource_group_name        = azurerm_resource_group.rg.name
-#   location                   = azurerm_resource_group.rg.location
-#   log_analytics_workspace_id = azurerm_log_analytics_workspace.log_workspace.id
-#   environment_keyvault_id    = module.key_vault.key_vault_id
-#   environment                = "development"
-#   tags                       = local.tags
+# resource "azurerm_api_management_api" "apim_api" {
+#   for_each            = { for api in var.apis : api.name => api } # Only executed if var.apis is non-empty
 
-#   # the key names are important, as they are used to generate the db connection string name where required.
-#   web_apps = {
-#     restaurants = {
-#       registry_url               = "https://ghcr.io"
-#       registry_username          = var.registry_username
-#       registry_password          = var.registry_password
-#       image_name                 = "stormvale/restaurants.api:latest",
-#       cosmosdb_connection_string = module.cosmosdb.account_connection_string
-#       subnet_id                  = module.networking.subnet_ids["web_apps"]
-#     }
-#     schools = {
-#       registry_url               = "https://ghcr.io"
-#       registry_username          = var.registry_username
-#       registry_password          = var.registry_password
-#       image_name                 = "stormvale/schools.api:latest",
-#       cosmosdb_connection_string = module.cosmosdb.account_connection_string
-#       subnet_id                  = module.networking.subnet_ids["web_apps"]
-#     }
+#   name                 = "${each.key}-api"
+#   resource_group_name  = var.resource_group_name
+#   api_management_name  = azurerm_api_management.apim.name
+#   revision             = "1"
+#   api_type             = "http"
+#   display_name         = "${each.key} API"
+#   terms_of_service_url = "https://opensource.org/licenses/MIT"
+#   path                 = each.key
+#   protocols            = ["https"]
+
+#   import {
+#     content_format = "openapi-link"
+#     content_value  = "${each.value.app_url}/openapi/v1.json"
 #   }
 # }
