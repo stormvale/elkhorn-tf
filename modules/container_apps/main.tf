@@ -7,10 +7,10 @@ resource "azurerm_container_app" "apps" {
   container_app_environment_id = var.container_app_environment_id
   revision_mode                = "Single"
   tags                         = var.tags
-  
+
   lifecycle {
     ignore_changes = [
-      secret, # don't recreate this resource when key vault secrets change
+      secret,                        # don't recreate this resource when key vault secrets change
       template[0].container[0].image # don't reset image if manually deployed (eg. pr, other tag)
     ]
   }

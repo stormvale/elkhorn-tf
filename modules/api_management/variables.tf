@@ -31,15 +31,15 @@ variable "tags" {
 }
 
 variable "apis" {
-    description = "(Optional) A list of API's to include."
-    type = set(object({
-        name             = string
-        display_name     = string
-        path             = string
-        protocols        = optional(set(string))
-        import_url       = optional(string)
-    }))
-    default = []
+  description = "(Optional) A list of API's to include."
+  type = set(object({
+    name         = string
+    display_name = string
+    path         = string
+    protocols    = optional(set(string))
+    import_url   = optional(string)
+  }))
+  default = []
 }
 
 ####################################################################################

@@ -258,20 +258,20 @@ module "container_apps" {
 
 module "api_management" {
   source = "../../modules/api_management"
-  
-  resource_group_name          = azurerm_resource_group.rg.name
-  location                     = azurerm_resource_group.rg.location
-  environment                  = "development"
-  tags = local.tags
+
+  resource_group_name = azurerm_resource_group.rg.name
+  location            = azurerm_resource_group.rg.location
+  environment         = "development"
+  tags                = local.tags
 
   apis = [
     {
-      name = "restaurants-api"
+      name         = "restaurants-api"
       display_name = "Restaurants API"
-      path = "restaurants"
-      revision = "1"
-      protocols = ["https"]
-      import_url = "${module.container_apps.container_app_urls["restaurants"]}/openapi/v1.json" 
+      path         = "restaurants"
+      revision     = "1"
+      protocols    = ["https"]
+      import_url   = "${module.container_apps.container_app_urls["restaurants"]}/openapi/v1.json"
     }
   ]
 }
