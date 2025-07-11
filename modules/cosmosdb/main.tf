@@ -9,8 +9,10 @@ resource "azurerm_cosmosdb_account" "account" {
   kind                                  = "GlobalDocumentDB"
   free_tier_enabled                     = true
   network_acl_bypass_for_azure_services = true
-  is_virtual_network_filter_enabled     = true
-  tags                                  = var.tags
+  # is_virtual_network_filter_enabled     = true
+  public_network_access_enabled = true # default = true
+  # ip_range_filter = ["13.91.105.215", "4.210.172.107", "13.88.56.148", "40.91.218.243"] # Azure Portal
+  tags = var.tags
 
   backup {
     type = "Continuous"
@@ -27,9 +29,6 @@ resource "azurerm_cosmosdb_account" "account" {
     location          = var.location
     failover_priority = 0
   }
-
-  # Azure Portal Middleware IP addresses
-  ip_range_filter = ["13.91.105.215", "4.210.172.107", "13.88.56.148", "40.91.218.243"]
 
   identity { type = "SystemAssigned" }
 

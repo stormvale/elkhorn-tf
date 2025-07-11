@@ -29,8 +29,29 @@ variable "environment" {
   }
 }
 
+variable "registry_username" {
+  description = "(Required) The username to use to access the configured container registry."
+  type        = string
+}
+
+variable "environment_keyvault_id" {
+  description = "(Required) Resource ID of the Key Vault used by container apps to read secrets."
+  type        = string
+}
+
+variable "container_apps_identity_id" {
+  description = "(Required) Resource ID for a user-assigned managed identity with the 'Key Vault Secrets User' role."
+  type        = string
+}
+
+variable "servicebus_namespace_id" {
+  description = "(Required) Resource ID for the servicebus namespace used by the Dapr pubsub component."
+  type        = string
+}
+
+
 variable "container_apps" {
-  description = "(Optional) Azure Container App resources that should exist."
+  description = "(Required) Azure Container App resources that should exist."
 
   type = map(object({
     image           = string
@@ -45,48 +66,87 @@ variable "container_apps" {
       secret_name = optional(string)
     }))
 
-    # secrets either have a value, or a key vault secret id and a managed identity used to access it.
+    # secrets either have a value, or a key vault secret id
     secrets = optional(list(object({
       name                = string
-      value               = optional(string)
-      identity            = optional(string)
+      value               = optional(string) # value is ignored if key_vault_secret_id is provided
       key_vault_secret_id = optional(string)
     })), [])
   }))
 
+  # validation {
+  #   condition = alltrue([
+  #     for env in var.container_apps.environment_variables :
+  #     (
+  #       (env.value != null && env.secret_name == null) ||
+  #       (env.value == null && env.secret_name != null)
+  #     )
+  #   ])
+  #   error_message = "Each environment variable must have either 'value' or 'secret_name', but not both."
+  # }
+
+  # validation {
+  #   condition = alltrue(flatten([
+  #     for app in values(var.container_apps) : [
+  #       for s in app.secrets : (
+  #         (s.value != null && s.key_vault_secret_id == null && s.identity == null) ||
+  #         (s.value == null && s.key_vault_secret_id != null && s.identity != null)
+  #       )
+  #     ]
+  #   ]))
+  #   error_message = "Each secret must have either a 'value' or both 'key_vault_secret_id' and 'identity', but not both."
+  # }
+}
+
+variable "dapr_components" {
+  description = "List of Dapr components to provision."
+  type = set(object({
+    name           = string
+    component_type = string
+    scopes         = optional(set(string), [])
+    metadata = optional(list(object({
+      name        = string
+      value       = optional(string)
+      secret_name = optional(string)
+    })), [])
+    secret = optional(list(object({
+      name  = string
+      value = string
+    })), [])
+  }))
   default = []
+}
 
-  validation {
-    condition = alltrue([
-      for env in var.container_apps.env_vars :
-      (
-        (env.value != null && env.secret_name == null) ||
-        (env.value == null && env.secret_name != null)
-      )
-    ])
-    error_message = "Each environment variable must have either 'value' or 'secret_name', but not both."
-  }
+variable "tags" {
+  description = "A map of tags to assign to the resource."
+  type        = map(string)
+  default     = {}
+}
 
-  validation {
-    condition = alltrue(flatten([
-      for app in values(var.container_apps) : [
-        for s in app.secrets : (
-          (s.value != null && s.key_vault_secret_id == null && s.identity == null) ||
-          (s.value == null && s.key_vault_secret_id != null && s.identity != null)
-        )
-      ]
-    ]))
-    error_message = "Each secret must have either a 'value' or both 'key_vault_secret_id' and 'identity', but not both."
+####################################################################################
+
+variable "location_map" {
+  description = "Maps a long location name to a short code. Used in resource names."
+  type        = map(string)
+
+  default = {
+    "westus2"       = "wus2",
+    "canadacentral" = "cnc"
   }
 }
 
-variable "registry_username" {
-  description = "(Required) The username to use to access the configured container registry."
-  type        = string
+variable "environment_map" {
+  description = "Maps a long environment name to a short code. Used in resource names."
+  type        = map(string)
+
+  default = {
+    "development" = "dev",
+    "production"  = "prod"
+  }
 }
 
-variable "registry_server" {
-  description = "(Required) The container registry server."
-  type        = string
-  default     = "ghcr.io"
+locals {
+  environment_short = var.environment != null ? "-${lookup(var.environment_map, var.environment)}" : ""
+  location_short    = lookup(var.location_map, var.location)
+  name_suffix       = "elkhorn${local.environment_short}-${local.location_short}"
 }

@@ -34,5 +34,6 @@ terraform {
   # 5. terraform plan should return 'No changes. Your infrastructure matches the configuration.'
 
   # terraform import azurerm_container_app.api_weather "<id>"
+  # terraform import module.container_apps.azurerm_container_app.apps["""restaurants"""] "<id>"
   # terraform import module.cosmosdb.azurerm_cosmosdb_account.account "<id>"
 }

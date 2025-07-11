@@ -1,3 +1,4 @@
+
 variable "resource_group_name" {
   description = "(Required) The name of the resource group where the resource should exist."
   type        = string
@@ -24,25 +25,21 @@ variable "environment" {
 }
 
 variable "tags" {
-  description = "A map of tags to assign to the resource."
+  description = "(Optional) A map of tags to assign to the resource."
   type        = map(string)
   default     = {}
 }
 
-# variable "virtual_network_name" {
-#   description = "(Required) The name of the virtual network to which to attach the new subnet for the Container Apps Environment."
-#   type        = string
-# }
-
-# variable "subnet_cidr" {
-#   description = "(Required) The address range in CIDR notation for the new subnet. Container Apps Environment requires at least /23"
-#   type        = string
-# }
-
-variable "log_analytics_workspace_id" {
-  description = "(Optional) The ID for the Log Analytics Workspace to link this Container Apps Managed Environment to."
-  type        = string
-  default     = null
+variable "apis" {
+  description = "(Optional) A list of API's to include."
+  type = set(object({
+    name         = string
+    display_name = string
+    path         = string
+    protocols    = optional(set(string))
+    service_url  = string
+  }))
+  default = []
 }
 
 ####################################################################################

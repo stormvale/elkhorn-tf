@@ -63,47 +63,45 @@ resource "azurerm_monitor_diagnostic_setting" "webapp_logs" {
   enabled_metric { category = "AllMetrics" }
 }
 
-# each web app needs to be able to read secrets from the key vault
+# each web app gets to read secrets from the key vault
 resource "azurerm_role_assignment" "webapp_kv_access" {
   for_each = azurerm_linux_web_app.web_app
 
   scope                = var.environment_keyvault_id
-  role_definition_name = "Key Vault Secrets User"
   principal_id         = each.value.identity[0].principal_id
+  role_definition_name = "Key Vault Secrets User"
 }
 
-/**********************************************************/
-# should api management stuff be moved to a separate module?
+###########################################################################
+# working, but switched to using container apps instead because of easier dapr integration.
 
-resource "azurerm_api_management" "apim" {
-  name                = "apim-${local.name_suffix}"
-  resource_group_name = var.resource_group_name
-  location            = var.location
-  publisher_name      = "Stormvale"
-  publisher_email     = "kevin@email.com"
-  sku_name            = "Consumption_0" # 1M api operations (per month?)
-  tags                = var.tags
+# module "web_apps" {
+#   source = "../../modules/web_apps"
 
-  identity { type = "SystemAssigned" }
-}
+#   resource_group_name        = azurerm_resource_group.rg.name
+#   location                   = azurerm_resource_group.rg.location
+#   log_analytics_workspace_id = azurerm_log_analytics_workspace.log_workspace.id
+#   environment_keyvault_id    = module.key_vault.key_vault_id
+#   environment                = "development"
+#   tags                       = local.tags
 
-# TODO: configure subscriptions for tighter api acess. see "azurerm_api_management_subscription"
-
-resource "azurerm_api_management_api" "apim_api" {
-  for_each = var.web_apps
-
-  name                 = "${each.key}-api"
-  resource_group_name  = var.resource_group_name
-  api_management_name  = azurerm_api_management.apim.name
-  revision             = "1"
-  api_type             = "http"
-  display_name         = "${each.key} API"
-  terms_of_service_url = "https://opensource.org/licenses/MIT"
-  path                 = each.key
-  protocols            = ["https"]
-
-  import {
-    content_format = "openapi-link"
-    content_value  = "https://app-${each.key}-${local.name_suffix}.azurewebsites.net/openapi/v1.json"
-  }
-}
+#   # the key names are important, as they are used to generate the db connection string name where required.
+#   web_apps = {
+#     restaurants = {
+#       registry_url               = "https://ghcr.io"
+#       registry_username          = var.registry_username
+#       registry_password          = var.registry_password
+#       image_name                 = "stormvale/restaurants.api:latest",
+#       cosmosdb_connection_string = module.cosmosdb.account_connection_string
+#       subnet_id                  = module.networking.subnet_ids["web_apps"]
+#     }
+#     schools = {
+#       registry_url               = "https://ghcr.io"
+#       registry_username          = var.registry_username
+#       registry_password          = var.registry_password
+#       image_name                 = "stormvale/schools.api:latest",
+#       cosmosdb_connection_string = module.cosmosdb.account_connection_string
+#       subnet_id                  = module.networking.subnet_ids["web_apps"]
+#     }
+#   }
+# }
