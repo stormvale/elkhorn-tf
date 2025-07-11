@@ -37,7 +37,7 @@ variable "apis" {
     display_name = string
     path         = string
     protocols    = optional(set(string))
-    import_url   = optional(string)
+    service_url  = string
   }))
   default = []
 }

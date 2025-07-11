@@ -27,9 +27,10 @@ resource "azurerm_api_management_api" "apis" {
   api_type            = "http"
   revision            = "1"
   protocols           = lookup(each.value, "protocols", ["https"])
+  service_url         = each.value.service_url
 
   import {
     content_format = "openapi-link"
-    content_value  = each.value.import_url
+    content_value  = "${each.value.service_url}/openapi/v1.json"
   }
 }

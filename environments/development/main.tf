@@ -271,7 +271,15 @@ module "api_management" {
       path         = "restaurants"
       revision     = "1"
       protocols    = ["https"]
-      import_url   = "${module.container_apps.container_app_urls["restaurants"]}/openapi/v1.json"
+      service_url  = module.container_apps.container_app_urls["restaurants"]
+    },
+    {
+      name         = "schools-api"
+      display_name = "Schools API"
+      path         = "schools"
+      revision     = "1"
+      protocols    = ["https"]
+      service_url  = module.container_apps.container_app_urls["schools"]
     }
   ]
 }

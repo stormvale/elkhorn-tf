@@ -4,6 +4,7 @@ resource "azurerm_servicebus_namespace" "sb" {
   location            = var.location
   resource_group_name = var.resource_group_name
   sku                 = "Standard" # Basic tier doesn't include topics
+  minimum_tls_version = "1.2"
 }
 
 resource "azurerm_servicebus_namespace_authorization_rule" "dapr_pubsub" {
