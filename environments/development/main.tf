@@ -192,7 +192,7 @@ module "container_apps" {
 
       environment_variables = [
         {
-          name        = "ConnectionStrings__elkhornDb"
+          name        = "ConnectionStrings__cosmos-db"
           secret_name = "db-conn-string"
         },
         {
@@ -220,7 +220,7 @@ module "container_apps" {
 
       environment_variables = [
         {
-          name        = "ConnectionStrings__elkhornDb"
+          name        = "ConnectionStrings__cosmos-db"
           secret_name = "db-conn-string"
         },
         {
