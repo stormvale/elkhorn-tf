@@ -229,6 +229,34 @@ module "container_apps" {
         }
       ]
     }
+    users = {
+      cpu             = 0.25
+      memory          = "0.5Gi"
+      image           = "ghcr.io/stormvale/users.api:latest"
+      ingress_enabled = true
+
+      secrets = [
+        {
+          name                = "db-conn-string"
+          key_vault_secret_id = module.key_vault.secret_ids["cosmosdb-connection-string"]
+        },
+        {
+          name                = "gh-pat-secret"
+          key_vault_secret_id = module.key_vault.secret_ids["container-registry-password"]
+        }
+      ]
+
+      environment_variables = [
+        {
+          name        = "ConnectionStrings__cosmos-db"
+          secret_name = "db-conn-string"
+        },
+        {
+          name  = "ASPNETCORE_ENVIRONMENT"
+          value = "Development"
+        }
+      ]
+    }
   }
 
   dapr_components = [
