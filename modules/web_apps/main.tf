@@ -23,7 +23,7 @@ resource "azurerm_linux_web_app" "web_app" {
   dynamic "connection_string" {
     for_each = each.value.cosmosdb_connection_string != null ? [each.value.cosmosdb_connection_string] : []
     content {
-      name  = "elkhornDb" # "${each.key}Db"
+      name  = "${each.key}Db" # db per web app
       type  = "Custom"
       value = each.value.cosmosdb_connection_string
     }

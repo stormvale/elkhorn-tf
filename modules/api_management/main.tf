@@ -18,16 +18,17 @@ resource "azurerm_api_management" "apim" {
 #   - identity providers?
 
 resource "azurerm_api_management_api" "apis" {
-  for_each            = { for api in var.apis : api.name => api } # Only executed if var.apis is non-empty
-  name                = each.value.name
-  display_name        = each.value.display_name
-  path                = each.value.path
-  api_management_name = azurerm_api_management.apim.name
-  resource_group_name = var.resource_group_name
-  api_type            = "http"
-  revision            = "1"
-  protocols           = lookup(each.value, "protocols", ["https"])
-  service_url         = each.value.service_url
+  for_each              = { for api in var.apis : api.name => api } # Only executed if var.apis is non-empty
+  name                  = each.value.name
+  display_name          = each.value.display_name
+  path                  = each.value.path
+  api_management_name   = azurerm_api_management.apim.name
+  resource_group_name   = var.resource_group_name
+  api_type              = "http"
+  revision              = "1"
+  protocols             = lookup(each.value, "protocols", ["https"])
+  service_url           = each.value.service_url
+  subscription_required = false
 
   import {
     content_format = "openapi-link"
