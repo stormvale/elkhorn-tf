@@ -284,21 +284,11 @@ module "api_management" {
   ]
 }
 
-# resource "azurerm_api_management_api" "apim_api" {
-#   for_each            = { for api in var.apis : api.name => api } # Only executed if var.apis is non-empty
+module "web_app" {
+  source = "../../modules/web_apps_static"
 
-#   name                 = "${each.key}-api"
-#   resource_group_name  = var.resource_group_name
-#   api_management_name  = azurerm_api_management.apim.name
-#   revision             = "1"
-#   api_type             = "http"
-#   display_name         = "${each.key} API"
-#   terms_of_service_url = "https://opensource.org/licenses/MIT"
-#   path                 = each.key
-#   protocols            = ["https"]
-
-#   import {
-#     content_format = "openapi-link"
-#     content_value  = "${each.value.app_url}/openapi/v1.json"
-#   }
-# }
+  resource_group_name = azurerm_resource_group.rg.name
+  location            = azurerm_resource_group.rg.location
+  environment         = "development"
+  tags                = local.tags
+}
