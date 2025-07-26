@@ -308,6 +308,14 @@ module "api_management" {
       revision     = "1"
       protocols    = ["https"]
       service_url  = module.container_apps.container_app_urls["schools"]
+    },
+    {
+      name         = "users-api"
+      display_name = "Users API"
+      path         = "users"
+      revision     = "1"
+      protocols    = ["https"]
+      service_url  = module.container_apps.container_app_urls["users"]
     }
   ]
 }

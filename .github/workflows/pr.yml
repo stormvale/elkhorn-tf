@@ -111,7 +111,7 @@ jobs:
         env:
           TF_VAR_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           TF_VAR_registry_username: ${{ github.actor }}
-          TF_VAR_registry_password: ${{ secrets.GH_PAT }}
+          TF_VAR_registry_password: ${{ secrets.TF_GITHUB_PAT }} # requires 'read:packages'
         run: |
           cd environments/${{ matrix.environment }}
           terraform plan -no-color -var-file="${{ matrix.environment }}.tfvars" -out=${{ matrix.environment }}.tfplan -detailed-exitcode
