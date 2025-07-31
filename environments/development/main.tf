@@ -173,6 +173,26 @@ module "container_apps" {
   tags                         = local.tags
 
   container_apps = {
+    gateway = {
+      cpu             = 0.25
+      memory          = "0.5Gi"
+      image           = "ghcr.io/stormvale/gateway.api:latest"
+      ingress_enabled = true
+
+      secrets = [
+        {
+          name                = "gh-pat"
+          key_vault_secret_id = module.key_vault.secret_ids["container-registry-password"]
+        }
+      ]
+
+      environment_variables = [
+        {
+          name  = "ASPNETCORE_ENVIRONMENT"
+          value = "Development"
+        }
+      ]
+    }
     restaurants = {
       cpu             = 0.25
       memory          = "0.5Gi"
@@ -185,7 +205,8 @@ module "container_apps" {
           key_vault_secret_id = module.key_vault.secret_ids["cosmosdb-connection-string"]
         },
         {
-          name                = "gh-pat-secret"
+          # a PAT is required to access ghcr.io so that the container app can pull the image
+          name                = "gh-pat"
           key_vault_secret_id = module.key_vault.secret_ids["container-registry-password"]
         }
       ]
@@ -213,7 +234,35 @@ module "container_apps" {
           key_vault_secret_id = module.key_vault.secret_ids["cosmosdb-connection-string"]
         },
         {
-          name                = "gh-pat-secret"
+          name                = "gh-pat"
+          key_vault_secret_id = module.key_vault.secret_ids["container-registry-password"]
+        }
+      ]
+
+      environment_variables = [
+        {
+          name        = "ConnectionStrings__cosmos-db"
+          secret_name = "db-conn-string"
+        },
+        {
+          name  = "ASPNETCORE_ENVIRONMENT"
+          value = "Development"
+        }
+      ]
+    }
+    users = {
+      cpu             = 0.25
+      memory          = "0.5Gi"
+      image           = "ghcr.io/stormvale/users.api:latest"
+      ingress_enabled = true
+
+      secrets = [
+        {
+          name                = "db-conn-string"
+          key_vault_secret_id = module.key_vault.secret_ids["cosmosdb-connection-string"]
+        },
+        {
+          name                = "gh-pat"
           key_vault_secret_id = module.key_vault.secret_ids["container-registry-password"]
         }
       ]
@@ -264,6 +313,7 @@ module "api_management" {
   environment         = "development"
   tags                = local.tags
 
+  # NB! currently you can only import an api once it has been deployed to the container app
   apis = [
     {
       name         = "restaurants-api"
@@ -280,6 +330,14 @@ module "api_management" {
       revision     = "1"
       protocols    = ["https"]
       service_url  = module.container_apps.container_app_urls["schools"]
+    },
+    {
+      name         = "users-api"
+      display_name = "Users API"
+      path         = "users"
+      revision     = "1"
+      protocols    = ["https"]
+      service_url  = module.container_apps.container_app_urls["users"]
     }
   ]
 }

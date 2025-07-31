@@ -71,7 +71,7 @@ resource "azurerm_container_app" "apps" {
   registry {
     server               = "ghcr.io"
     username             = var.registry_username
-    password_secret_name = "gh-pat-secret"
+    password_secret_name = "gh-pat"
   }
 
   dapr {
